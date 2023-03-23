@@ -1,0 +1,3 @@
+[submodule "sym_msm/deepmsm"]
+	path = sym_msm/deepmsm
+	url = https://github.com/yuxuanzhuang/deepmsm

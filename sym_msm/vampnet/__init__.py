@@ -7,9 +7,15 @@ __version__ = "0.1.0"
 from .vampnet import (
     VAMPNETInitializer,
     VAMPNETInitializer_Multimer,
-    MultimerNet,
     VAMPNet_Multimer,
     VAMPNet_Multimer_AUG,
+)
+
+from .lobe import (
+    MultimerNet,
+    MultimerNet_200,
+    MultimerNet_400,
+
 )
 
 from .vampnet_rev import VAMPNet_Multimer_REV

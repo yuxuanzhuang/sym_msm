@@ -1,5 +1,4 @@
 import os
-from msm_a7_nachrs.msm.MSM_a7 import MSMInitializer
 import numpy as np
 import pandas as pd
 import pyemma
@@ -20,7 +19,7 @@ from typing import List, Tuple, Dict, Union, Optional
 import dask.dataframe as dd
 
 from ..util.utils import *
-from ..msm.MSM_a7 import MSMInitializer
+from ..msm.msm import MSMInitializer
 from ..util.dataloader import MultimerTrajectoriesDataset, get_symmetrized_data
 from .sym_tica import SymTICA
 

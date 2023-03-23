@@ -2,17 +2,17 @@ ipython
 IProgress
 jupyter
 jupyterlab
-biopython>=1.80
+biopython
 codecov
 cython
 fasteners
 griddataformats
 gsd
 hypothesis
-joblib>=0.12
+joblib
 matplotlib
 mmtf-python
-msmb_theme==1.2.0
+msmb_theme
 netcdf4
 networkx
 packaging
@@ -21,17 +21,18 @@ pytest
 scikit-learn
 scipy
 seaborn
-sphinx==1.8.5
+sphinx
 sphinx_rtd_theme
 sphinx_sitemap
 threadpoolctl
 tqdm
-numpy==1.24.2
+numpy
 pandas
 deeptime
 pyemma
 nglview
 dask==2021.4.1
-distributed
+distributed==2021.4.1
+torch
 mdanalysis @ git+https://github.com/yuxuanzhuang/mdanalysis#egg=with_fasttrans&subdirectory=package
 ENPMDA @ git+https://github.com/yuxuanzhuang/enpmda

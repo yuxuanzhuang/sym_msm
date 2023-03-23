@@ -1,5 +1,10 @@
 import os
 import numpy as np
+
+import warnings
+
+# ignore pandas future warning
+warnings.filterwarnings("ignore", category=FutureWarning)
 import pandas as pd
 import matplotlib.pyplot as plt
 import pyemma
@@ -11,7 +16,6 @@ from deeptime.util.validation import implied_timescales
 from ENPMDA import MDDataFrame
 from joblib import Parallel, delayed
 import pickle
-from pydantic import BaseModel
 from datetime import datetime
 from copy import deepcopy
 
@@ -22,6 +26,7 @@ import itertools
 import MDAnalysis as mda
 from MDAnalysis.analysis import align
 from tqdm import tqdm
+from ..util.utils import tqdm_joblib
 from ..util.score_cv import score_cv
 from ..util.dataloader import MultimerTrajectoriesDataset, get_symmetrized_data
 
@@ -31,7 +36,7 @@ class MSMInitializer:
 
     def __init__(
         self,
-        md_dataframe: MDDataframe,
+        md_dataframe: MDDataFrame,
         lag: int,
         multimer: int,
         start: int = 0,
@@ -603,6 +608,8 @@ class MSMInitializer:
         )
 
 # TODO: check msm model from basemodel information
+"""
+from pydantic import BaseModel
 class MSMMetaData(BaseModel):
     create_time: Optional[datetime] = None
     id: int = 0
@@ -616,3 +623,4 @@ class MSMMetaData(BaseModel):
     interval: int
     prefix: Optional[str] = None
     feature_input_info_list: Optional[List[str]] = []
+"""

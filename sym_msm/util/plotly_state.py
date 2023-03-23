@@ -11,7 +11,8 @@ from ENPMDA import MDDataFrame
 def export_plotly(plotly_df,
                   title,
                   output,
-                  sel_tic = [0, 1],
+                  state_columns,
+                  sel_tic=[0, 1],
                   append=False):
     print('output: ', output)
     if len(sel_tic) != 2:
@@ -25,6 +26,13 @@ def export_plotly(plotly_df,
             'EPJPNU': 'OPEN',
     }
 
+    state_indices = np.arange(50)
+
+    color_palette = sns.color_palette("Paired", n_colors=50)
+    state_color_2_hex = {}
+    for state, color in zip(state_indices, color_palette.as_hex()):
+        state_color_2_hex[state] = color
+
     tic_values = []
     for tic in sel_tic:
         tic_values.append(plotly_df[plotly_df.traj_time%10000 == 0][f'tic_{tic}'].values)
@@ -35,6 +43,12 @@ def export_plotly(plotly_df,
     default_size = 10
     highlighted_size_delta = 10
 
+    color_mappings = {}
+    for state in state_columns:
+        color_mappings[state] = plotly_df[plotly_df.traj_time%10000 == 0][state].apply(lambda x: state_color_2_hex[x]).values
+    color_mappings['frame'] = plotly_df[plotly_df.traj_time%10000 == 0]['frame'].values
+    color_mappings['traj_time'] = plotly_df[plotly_df.traj_time%10000 == 0]['traj_time'].values
+
     plot_states = ['BGT', 'EPJ', 'EPJPNU']
     for system, df in plotly_df.groupby('system'):
         pathway = df.pathway.unique()[0]
@@ -42,22 +56,21 @@ def export_plotly(plotly_df,
         seed = df.seed.unique()[0]
         x = df[df.traj_time%10000 == 0][f'tic_{sel_tic[0]}'].values
         y = df[df.traj_time%10000 == 0][f'tic_{sel_tic[1]}'].values
-        t = df[df.traj_time%10000 == 0]['frame'].values
 
         fig.add_trace(
             go.Scattergl(x=x, y=y,
                 name=f'SEED_{seed}',
                 mode='lines+markers',
-                visible='legendonly',
+                visible=True,
                 legendgroup=pathway_text,
                 legendgrouptitle_text=pathway_text,
                 showlegend=True,
                 line=dict(
-                    width=2,
+                    width=0.1,
                     color='black',
                 ),
                 marker=dict(
-                    color=t,
+                    color=df[df.traj_time%10000 == 0]['frame'].values,
                     colorscale='Purp',
                     size=10,
                     opacity=1,
@@ -94,7 +107,7 @@ def export_plotly(plotly_df,
 
 
     # we need to add the on_click event to each trace separately       
-    for i in range(len(fig.data[1:])):
+    for i in range(len(fig.data[:])):
         fig.data[i].on_click(update_trace)
 
     fig.update_xaxes(title_text="IC 1")
@@ -112,7 +125,39 @@ def export_plotly(plotly_df,
         ),
         paper_bgcolor="LightSteelBlue",
     )
-
+    button_lists = []
+    button_lists.append(dict(label="All",
+                        method="restyle",
+                        visible=True,
+                        args=[{"visible": [True] * len(fig.data)}],
+                        ))
+    button_lists.append(dict(label="None",
+                        method="restyle",
+                        visible=True,
+                        args=[{"visible": [False] * len(fig.data)}],
+                        ))
+    for i, state in enumerate(state_columns):
+        # update color of markers
+        button_lists.append(dict(label=state,
+                            method="restyle",
+                            visible=True,
+                            args=[{
+                                   "visible": [True] * len(fig.data),
+                                   "marker.color": color_mappings[state],
+                                   "marker.showscale": True,
+                                   "marker.colorscale": 'set20',
+                                   "marker.cmin": 0,
+                                   "marker.cmax": 100,
+                                   "marker.colorbar.title": "State",
+                                   "marker.colorbar.titleside": "right",
+                                   "marker.colorbar.titlefont.size": 16,
+                                   "marker.colorbar.tickfont.size": 14,
+                                   "marker.colorbar.tickfont.color": "black",
+                                   "marker.colorbar.tickfont.family": "Courier New, monospace",
+                                   "marker.colorbar.tickfont.family": "Courier New, monospace",
+                                   }],
+                            ))
+        
     fig.update_layout(
         title=f"{title} \n Color (Time)\n Size (MSM weight)",
         font=dict(
@@ -120,8 +165,8 @@ def export_plotly(plotly_df,
             size=10,
             color="#000000"
             ),
-        xaxis_range=[-1.5, 1.3],
-        yaxis_range=[-2.1, 2.9],
+        xaxis_range=[-3.5, 3.3],
+        yaxis_range=[-3.1, 3.9],
         legend=dict(x=1.1, y=0.95),
         legend_groupclick="toggleitem",
     #    legend_groupclick="togglegroup",
@@ -129,14 +174,7 @@ def export_plotly(plotly_df,
         updatemenus=[
             dict(
                 active=0,
-            buttons=list([
-                dict(label="Only FES",
-                     method="restyle",
-                     visible=True,
-                     args=[{"visible": [True] + ['legendonly'] * (len(fig.data) - 1)}],
-                        ),
-            ]
-        )
+            buttons=button_lists
     )
     ]
     )

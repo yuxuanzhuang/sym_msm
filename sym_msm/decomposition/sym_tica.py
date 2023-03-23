@@ -534,7 +534,7 @@ class Concatenation_Multimer(Concatenation):
         result = result.reshape(result.shape[0], self.symmetry_fold, -1)
         return self.obs1(result)
 
-
+#TODO: rewrite covaraince class to be able to handle multimer data
 class SymVAMP_NOAUG(SymVAMP):
     r"""Variational approach for Markov processes (VAMP) with a symmetric observable transform."""
 
@@ -548,6 +548,7 @@ class SymVAMP_NOAUG(SymVAMP):
         epsilon: float = 1e-6,
         observable_transform: Callable[[np.ndarray], np.ndarray] = Identity(),
     ):
+        raise NotImplementedError("SymVAMP_NOAUG is not implemented yet.")
         super().__init__(
             lagtime=lagtime,
             dim=dim,
@@ -668,17 +669,41 @@ class SymVAMP_NOAUG(SymVAMP):
         self : VAMP
             Reference to self.
         """
-        dataset = to_multimer_dataset(
+        datasets = to_multimer_datasets(
             data, symmetry_fold=self.symmetry_fold, lagtime=self.lagtime
         )
         self._covariance_estimator = self.covariance_estimator(lagtime=self.lagtime)
-        x, y = dataset[:]
-        transformed = (self.observable_transform(x), self.observable_transform(y))
-        covariances = self._covariance_estimator.partial_fit(
-            transformed, weights=weights
-        ).fetch_model()
+        self.datasets = datasets
+        for dataset in datasets:
+            print(dataset)
+            x = dataset.data
+            y = dataset.data_lagged
+            transformed = (self.observable_transform(x), self.observable_transform(y))
+            self._covariance_estimator = self._covariance_estimator.partial_fit(
+                transformed, weights=weights
+            )
+        covariances = self._covariance_estimator.fetch_model()
         return self.fit_from_covariances(covariances)
 
+    def fit_from_covariances(self, covariances: Union[Covariance, CovarianceModel]):
+        r"""Fits from existing covariance model (or covariance estimator containing model).
+
+        Parameters
+        ----------
+        covariances : CovarianceModel or Covariance
+            Covariance model containing covariances or Covariance estimator containing a covariance model. The model
+            in particular has matrices :math:`C_{00}, C_{0t}, C_{tt}`.
+
+        Returns
+        -------
+        self : VAMP
+            Reference to self.
+        """
+        self._covariance_estimator = None
+        covariances = self._to_covariance_model(covariances)
+        self._model = self._decompose(covariances)
+        return self
+    
     def _decompose(self, covariances: CovarianceModel):
         decomposition = self._decomposition(
             covariances,
@@ -688,20 +713,26 @@ class SymVAMP_NOAUG(SymVAMP):
             self.var_cutoff,
             self.symmetry_fold,
         )
-        return CovarianceKoopmanModel(
-            decomposition.left_singular_vecs,
-            decomposition.singular_values,
-            decomposition.right_singular_vecs,
+
+        return SymCovarianceKoopmanModel(
+            symmetrty_fold=self.symmetry_fold,
+            instantaneous_coefficients=decomposition.left_singular_vecs,
+            singular_values=decomposition.singular_values,
+            timelagged_coefficients=decomposition.right_singular_vecs,
+            instantaneous_coefficients_full=decomposition.left_singular_vecs_full,
+            timelagged_coefficients_full=decomposition.right_singular_vecs_full,
             rank_0=decomposition.rank0,
             rank_t=decomposition.rankt,
             dim=self.dim,
             var_cutoff=self.var_cutoff,
-            cov=covariances,
+            cov=decomposition.cov,
+            cov_full=covariances,
             scaling=self.scaling,
             epsilon=self.epsilon,
             instantaneous_obs=self.observable_transform,
             timelagged_obs=self.observable_transform,
         )
+    
 
 
 class SymTICA_NOAUG(SymVAMP_NOAUG, TICA):
@@ -727,7 +758,7 @@ class SymTICA_NOAUG(SymVAMP_NOAUG, TICA):
         )
 
 
-def to_multimer_dataset(
+def to_multimer_datasets(
     data: Union[TimeLaggedDataset, Tuple[np.ndarray, np.ndarray], np.ndarray],
     symmetry_fold: int,
     lagtime: Optional[int] = None,
@@ -774,10 +805,9 @@ def to_multimer_dataset(
     if isinstance(data, TrajectoryDataset):
         traj_list = []
         for data_sub in np.split(data.data, 2, axis=1):
-            print(data_sub.shape)
             for data_lagged_sub in np.split(data.data_lagged, 2, axis=1):
-                traj_list.append(np.asarray([data_sub, data_lagged_sub]).T)
-        return TrajectoriesDataset.from_numpy(lagtime, traj_list)
+                traj_list.append(TimeLaggedDataset(data_sub, data_lagged_sub))
+        return traj_list
     assert hasattr(data, "__len__") and len(data) > 0, "Data is empty."
 
     assert is_timelagged_dataset(data), (
