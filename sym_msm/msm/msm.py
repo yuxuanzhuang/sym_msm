@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 import pandas as pd
 import matplotlib.pyplot as plt
-import pyemma
+#import pyemma
 from deeptime.clustering import KMeans
 from deeptime.markov import TransitionCountEstimator
 from deeptime.markov.msm import BayesianMSM, MaximumLikelihoodMSM
@@ -18,6 +18,7 @@ from joblib import Parallel, delayed
 import pickle
 from datetime import datetime
 from copy import deepcopy
+from scipy.stats import rankdata
 
 from typing import List, Optional
 
@@ -263,15 +264,26 @@ class MSMInitializer:
         self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
 
     @staticmethod
-    def bayesian_msm_from_traj(cluster_dtrajs, lagtime, n_samples):
+    def bayesian_msm_from_traj(cluster_dtrajs, lagtime, n_samples, only_timescales):
         counts = TransitionCountEstimator(
-            lagtime=lagtime, count_mode="effective"
-        ).fit_fetch(cluster_dtrajs)
+            lagtime=lagtime, count_mode="effective", 
+        ).fit_fetch(cluster_dtrajs, n_jobs=1)
+        if only_timescales:
+            return BayesianMSM(n_samples=n_samples).fit_fetch(counts).timescales()
         return BayesianMSM(n_samples=n_samples).fit_fetch(counts)
 
     def get_its(
-        self, cluster="deeptime", lag_max=200, n_samples=1000, n_jobs=10, updating=False
+        self,
+        cluster="deeptime",
+        lag_max=200,
+        n_samples=1000,
+        n_jobs=10,
+        only_timescales=False,
+        updating=False,
+        joblib_kwargs={},  # kwargs for joblib
     ):
+        if only_timescales:
+            raise NotImplementedError("Only timescales not implemented yet")
         if cluster == "deeptime":
             if (
                 not (
@@ -284,12 +296,12 @@ class MSMInitializer:
             ):
                 print("Start new ITS analysis")
                 lagtimes = np.linspace(1, lag_max / self.dt, 10).astype(int)
-
+                print("Lagtimes are", lagtimes * self.dt, "ns")
                 if n_jobs != 1:
                     with tqdm_joblib(tqdm(desc="ITS", total=10)) as progress_bar:
-                        models = Parallel(n_jobs=n_jobs)(
+                        models = Parallel(n_jobs=n_jobs, **joblib_kwargs)(
                             delayed(self.bayesian_msm_from_traj)(
-                                self.cluster_dtrajs, lagtime, n_samples
+                                self.cluster_dtrajs, lagtime, n_samples, only_timescales
                             )
                             for lagtime in lagtimes
                         )
@@ -338,18 +350,6 @@ class MSMInitializer:
                         "rb",
                     )
                 )
-
-        elif cluster == "pyemma":
-            self.its = pyemma.msm.its(
-                self.cluster_dtrajs,
-                lags=int(lag_max / self.dt),
-                nits=10,
-                errors="bayes",
-                only_timescales=True,
-            )
-        else:
-            raise ValueError("Cluster method not recognized")
-
         return self.its
 
     def plot_its(self, n_its=10):
@@ -362,8 +362,13 @@ class MSMInitializer:
         plt.show()
 
     def get_ck_test(
-        self, n_states, lag, mlags=6, n_jobs=6, n_samples=20, updating=False
+        self, n_states, lag, mlags=6, n_jobs=6, n_samples=20,
+        only_timescales=False,
+        updating=False,
+        joblib_kwargs={},  # kwargs for joblib
     ):
+        if only_timescales:
+            raise NotImplementedError("Only timescales not implemented yet")
         if (
             not updating
             and not self.rerun_msm
@@ -386,9 +391,9 @@ class MSMInitializer:
 
             if n_jobs != 1:
                 with tqdm_joblib(tqdm(desc="ITS", total=len(lagtimes))) as progress_bar:
-                    test_models = Parallel(n_jobs=n_jobs)(
+                    test_models = Parallel(n_jobs=n_jobs, **joblib_kwargs)(
                         delayed(self.bayesian_msm_from_traj)(
-                            self.cluster_dtrajs, lagtime, n_samples
+                            self.cluster_dtrajs, lagtime, n_samples, only_timescales
                         )
                         for lagtime in lagtimes
                     )
@@ -461,12 +466,6 @@ class MSMInitializer:
             self.trajectory_weights = self.msm_model.compute_trajectory_weights(
                 self.cluster_dtrajs
             )
-
-        elif cluster == "pyemma":
-            self.msm_model = pyemma.msm.bayesian_markov_model(
-                self.cluster_dtrajs, lag=self.msm_lag, dt_traj=str(self.dt) + " ns"
-            )
-
         return self.msm_model
 
     def get_bayesian_msm(self, lag, n_samples=100, cluster="deeptime", updating=False):
@@ -569,13 +568,51 @@ class MSMInitializer:
                 self.stationary_distribution = np.mean(self.pi_samples, axis=0)
                 self.pi = self.stationary_distribution
                 self.trajectory_weights = np.mean(self.traj_weights_samples, axis=0)
-
-        elif cluster == "pyemma":
-            self.msm_model = pyemma.msm.bayesian_markov_model(
-                self.cluster_dtrajs, lag=self.msm_lag, dt_traj=str(self.dt) + " ns"
-            )
-
         return self.msm_model
+
+    def get_connected_msm(self):
+        if self.msm_model is None:
+            raise ValueError("No MSM model found")
+        msm_model = self.msm_model
+        self.active_set = msm_model.prior.count_model.states_to_symbols(msm_model.prior.count_model.states)
+        self.inactive_set = list(set(range(msm_model.prior.count_model.n_states_full)).difference(set(self.active_set)))
+        assignment = self.assignments_concat
+        cluster_rank = self.cluster_rank_concat
+        self.stat_rank_mapping = {}
+        for i in range(cluster_rank.max() + 1):
+            self.stat_rank_mapping[i] = assignment[np.where(cluster_rank == i)[0][0]]
+
+    def get_connected_pcca_msm(self):
+        if self.msm_model is None:
+            raise ValueError("No MSM model found")
+        if self.pcca is None:
+            raise ValueError("No PCCA model found")
+        
+        cluster_rank = self.cluster_rank_concat
+        assignment = self.assignments_concat
+
+        if self.inactive_set != []:
+            # get connected indices
+            disconnection_indices = []
+            for inactive_stat in self.inactive_set:
+                disconnection_indices.append(np.where(cluster_rank == inactive_stat)[0])
+            self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))), dtype=int)
+            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)), disconnection_indices)
+
+            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices], method='dense') - 1
+            self.assignment_connected = assignment[self.connected_indices]
+        else:
+            self.connected_indices = np.arange(len(cluster_rank))
+            self.cluster_rank_connected_concat = cluster_rank
+            self.assignment_connected = assignment
+
+        self.stat_rank_mapping_connected = {}
+        for i in range(cluster_rank.max() + 1):
+            self.stat_rank_mapping_connected[i] = self.assignment_connected[np.where(cluster_rank == i)[0][0]]
+        
+        #metastable_traj = [self.pcca.assignments[c_traj] for c_traj in cluster_dtrajs]
+        self.metastable_concat = self.pcca.assignments[self.cluster_rank_connected_concat]
+
 
     @property
     def filename(self):

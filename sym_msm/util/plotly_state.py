@@ -5,6 +5,7 @@ from plotly.subplots import make_subplots
 import numpy as np
 import pandas as pd
 import sys
+import seaborn as sns
 
 from ENPMDA import MDDataFrame
 
@@ -45,70 +46,81 @@ def export_plotly(plotly_df,
 
     color_mappings = {}
     for state in state_columns:
-        color_mappings[state] = plotly_df[plotly_df.traj_time%10000 == 0][state].apply(lambda x: state_color_2_hex[x]).values
+        color_mappings[state] = plotly_df[plotly_df.traj_time%10000 == 0][state].values
     color_mappings['frame'] = plotly_df[plotly_df.traj_time%10000 == 0]['frame'].values
     color_mappings['traj_time'] = plotly_df[plotly_df.traj_time%10000 == 0]['traj_time'].values
 
     plot_states = ['BGT', 'EPJ', 'EPJPNU']
+
+    for state in state_columns:
+        for system, df in plotly_df.groupby('system'):
+            pathway = df.pathway.unique()[0]
+            pathway_text = ' to '.join([struc_state_dic[path][0] for path in pathway.split('_')])
+            seed = df.seed.unique()[0]
+            x = df[df.traj_time%10000 == 0][f'tic_{sel_tic[0]}'].values
+            y = df[df.traj_time%10000 == 0][f'tic_{sel_tic[1]}'].values
+
+            fig.add_trace(
+                go.Scattergl(x=x, y=y,
+                    name=f'SEED_{seed}',
+                    mode='lines+markers',
+                    visible=state == 'frame',
+                    legendgroup=pathway_text,
+                    legendgrouptitle_text=pathway_text,
+                    showlegend=state == 'frame',
+                    line=dict(
+                        width=0.1,
+                        color='black',
+                    ),
+                    marker=dict(
+                        color=df[df.traj_time%10000 == 0][state].values,
+                        colorscale='Purp',
+                        size=10,
+                        opacity=1,
+                        showscale=False)
+                )
+            )
+
     for system, df in plotly_df.groupby('system'):
         pathway = df.pathway.unique()[0]
-        pathway_text = ' to '.join([struc_state_dic[path][0] for path in pathway.split('_')])
         seed = df.seed.unique()[0]
-        x = df[df.traj_time%10000 == 0][f'tic_{sel_tic[0]}'].values
-        y = df[df.traj_time%10000 == 0][f'tic_{sel_tic[1]}'].values
-
-        fig.add_trace(
-            go.Scattergl(x=x, y=y,
-                name=f'SEED_{seed}',
-                mode='lines+markers',
-                visible=True,
-                legendgroup=pathway_text,
-                legendgrouptitle_text=pathway_text,
-                showlegend=True,
-                line=dict(
-                    width=0.1,
-                    color='black',
-                ),
-                marker=dict(
-                    color=df[df.traj_time%10000 == 0]['frame'].values,
-                    colorscale='Purp',
-                    size=10,
-                    opacity=1,
-                    showscale=False)
-            )
-        )
         if seed == 0 and pathway.split('_')[0] in plot_states:
+            x = df[df.traj_time%10000 == 0][f'tic_{sel_tic[0]}'].values
+            y = df[df.traj_time%10000 == 0][f'tic_{sel_tic[1]}'].values
+
             fig.add_annotation(x=x[10], y=y[10],
-            text=struc_state_dic[pathway.split('_')[0]],
-            showarrow=False,
-            font=dict(
-                family="Courier New, monospace",
-                size=16,
-                color="#ffffff"
-                ),
-            align="center",
-            bordercolor="#c7c7c7",
-            borderwidth=2,
-            borderpad=4,
-            bgcolor="#ff7f0e",
-            opacity=0.4)
+                text=struc_state_dic[pathway.split('_')[0]],
+                showarrow=False,
+                font=dict(
+                    family="Courier New, monospace",
+                    size=16,
+                    color="#ffffff"
+                    ),
+                align="center",
+                bordercolor="#c7c7c7",
+                borderwidth=2,
+                borderpad=4,
+                bgcolor="#ff7f0e",
+                opacity=0.4)
             plot_states.remove(pathway.split('_')[0])
-
-
-    def update_trace(trace, points, selector):
-        # this list stores the points which were clicked on
-        # in all but one trace they are empty
-        print(points)
-        if len(points.point_inds) == 0:
-            return
         
-        for i,_ in enumerate(fig.data):
-            fig.data[i]['marker']['size'] = default_size + highlighted_size_delta
+
+    if False:
+
+        def update_trace(trace, points, selector):
+            # this list stores the points which were clicked on
+            # in all but one trace they are empty
+            print(points)
+            if len(points.point_inds) == 0:
+                return
+            
+            for i,_ in enumerate(fig.data):
+                fig.data[i]['marker']['size'] = default_size + highlighted_size_delta
 
 
-    # we need to add the on_click event to each trace separately       
-    for i in range(len(fig.data[:])):
-        fig.data[i].on_click(update_trace)
+        # we need to add the on_click event to each trace separately       
+        for i in range(len(fig.data[:])):
+            fig.data[i].on_click(update_trace)
 
     fig.update_xaxes(title_text="IC 1")
     fig.update_yaxes(title_text="IC 2")
@@ -126,16 +138,16 @@ def export_plotly(plotly_df,
         paper_bgcolor="LightSteelBlue",
     )
     button_lists = []
-    button_lists.append(dict(label="All",
-                        method="restyle",
-                        visible=True,
-                        args=[{"visible": [True] * len(fig.data)}],
-                        ))
     button_lists.append(dict(label="None",
                         method="restyle",
                         visible=True,
                         args=[{"visible": [False] * len(fig.data)}],
                         ))
+#    button_lists.append(dict(label="Frame",
+#                        method="restyle",
+#                        visible=True,
+#                        args=[{"visible": [True] * len(fig.data)}],
+#                        ))
     for i, state in enumerate(state_columns):
         # update color of markers
         button_lists.append(dict(label=state,
@@ -143,18 +155,6 @@ def export_plotly(plotly_df,
                             visible=True,
                             args=[{
                                    "visible": [True] * len(fig.data),
-                                   "marker.color": color_mappings[state],
-                                   "marker.showscale": True,
-                                   "marker.colorscale": 'set20',
-                                   "marker.cmin": 0,
-                                   "marker.cmax": 100,
-                                   "marker.colorbar.title": "State",
-                                   "marker.colorbar.titleside": "right",
-                                   "marker.colorbar.titlefont.size": 16,
-                                   "marker.colorbar.tickfont.size": 14,
-                                   "marker.colorbar.tickfont.color": "black",
-                                   "marker.colorbar.tickfont.family": "Courier New, monospace",
-                                   "marker.colorbar.tickfont.family": "Courier New, monospace",
                                    }],
                             ))
         

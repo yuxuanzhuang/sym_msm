@@ -1,4 +1,4 @@
-"""Top-level package for MSM_a7_nachrs."""
+"""Top-level package for sym_msm.vampnet"""
 
 __author__ = """Yuxuan Zhuang"""
 __email__ = "yuxuan.zhuang@dbb.su.se"
