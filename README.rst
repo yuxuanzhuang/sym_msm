@@ -10,7 +10,20 @@ Symmetry-adapted MSM
         :target: https://pypi.python.org/pypi/sym_msm
 
 
-This package contains essential tools  to perform markov state models on symmetric systems e.g. a homo-pentameric ligand-gated ion channel.
+This package contains essential tools to perform markov state models on symmetric systems e.g. a homopentameric ligand-gated ion channel.
+
+Installation
+------------
+The package can be installed by running the following command:
+
+    git clone --recurse-submodules https://github.com/yuxuanzhuang/sym_msm.git
+    cd sym_msm
+    pip install .
+
+Usage
+-----
+As an example, see the jupyter notebook in the example folder.
+
 
 * Free software: 3-clause BSD license
 * Documentation: (COMING SOON!) https://yuxuanzhuang.github.io/sym_msm.
