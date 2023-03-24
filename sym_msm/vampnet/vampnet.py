@@ -37,6 +37,7 @@ from scipy.stats import rankdata
 from ..decomposition import SymTICA
 from .score import vamp_score_sym, vamp_score_rev
 
+
 class VAMPNet_Multimer(VAMPNet):
     def __init__(
         self,
@@ -110,13 +111,9 @@ class VAMPNet_Multimer(VAMPNet):
         batch_0, batch_t = data[0], data[1]
 
         if isinstance(data[0], np.ndarray):
-            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(device=self.device)
         if isinstance(data[1], np.ndarray):
-            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(device=self.device)
 
         self.optimizer.zero_grad()
         x_0 = self.lobe(batch_0)
@@ -152,9 +149,7 @@ class VAMPNet_Multimer(VAMPNet):
         else:
             loss_value_full = None
             loss_value_deg = None
-        self.append_training_score(
-            self._step, -loss_value, score_value_full, score_value_deg
-        )
+        self.append_training_score(self._step, -loss_value, score_value_full, score_value_deg)
 
         if train_score_callback is not None:
             lval_detached = loss_value.detach()
@@ -221,18 +216,8 @@ class VAMPNet_Multimer(VAMPNet):
                 val = self.lobe(validation_data[0])
                 val_t = self.lobe_timelagged(validation_data[1])
                 # augmenting validation set by permutation
-                val_aug = torch.concat(
-                    [
-                        torch.roll(val, self.n_states * i, 1)
-                        for i in range(self.multimer)
-                    ]
-                )
-                val_t_aug = torch.concat(
-                    [
-                        torch.roll(val_t, self.n_states * i, 1)
-                        for i in range(self.multimer)
-                    ]
-                )
+                val_aug = torch.concat([torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)])
+                val_t_aug = torch.concat([torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)])
                 score_value = vamp_score(
                     val_aug,
                     val_t_aug,
@@ -278,12 +263,10 @@ class VAMPNet_Multimer(VAMPNet):
             warnings.warn("VAMPNet not trained yet. Please call fit first.")
         model = self.fetch_model()
         if model is None:
-            raise ValueError(
-                "This estimator contains no model yet, fit should be called first."
-            )
+            raise ValueError("This estimator contains no model yet, fit should be called first.")
         return model.transform(data, **kwargs)
 
-    #TODO: implement transform_subunits
+    # TODO: implement transform_subunits
     def transform_subunits(self, data, **kwargs):
         r"""Transforms data with the encapsulated model subunit-wise.
 
@@ -303,9 +286,7 @@ class VAMPNet_Multimer(VAMPNet):
             warnings.warn("VAMPNet not trained yet. Please call fit first.")
         model = self.fetch_model()
         if model is None:
-            raise ValueError(
-                "This estimator contains no model yet, fit should be called first."
-            )
+            raise ValueError("This estimator contains no model yet, fit should be called first.")
         return model.transform_subunits(data, **kwargs)
 
     def fit(
@@ -371,9 +352,7 @@ class VAMPNet_Multimer(VAMPNet):
 
         # and train
         with disable_TF32():
-            for _ in progress(
-                range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False
-            ):
+            for _ in progress(range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False):
                 for batch_0, batch_t in data_loader:
                     self.partial_fit(
                         (
@@ -418,24 +397,16 @@ class VAMPNet_Multimer(VAMPNet):
                         else:
                             mean_score_full = None
                             mean_score_deg = None
-                        self.append_validation_score(
-                            self._step, mean_score, mean_score_full, mean_score_deg
-                        )
+                        self.append_validation_score(self._step, mean_score, mean_score_full, mean_score_deg)
                         if validation_score_callback is not None:
                             validation_score_callback(self._step, mean_score)
 
-                        if (
-                            mean_score
-                            > self.best_validation_score + early_stopping_threshold
-                        ):
+                        if mean_score > self.best_validation_score + early_stopping_threshold:
                             self.best_validation_score = mean_score
                             self.best_validation_score_epoch = self._step
                             self.best_model = self.fetch_model()
                         if early_stopping_patience is not None:
-                            if (
-                                self._step - self.best_validation_score_epoch
-                                > early_stopping_patience
-                            ):
+                            if self._step - self.best_validation_score_epoch > early_stopping_patience:
                                 self._lobe = self.best_model._lobe
                                 self._lobe_timelagged = self.best_model._lobe_timelagged
                                 self._step = self.best_validation_score_epoch
@@ -444,11 +415,7 @@ class VAMPNet_Multimer(VAMPNet):
                                         early_stopping_patience
                                     )
                                 )
-                                print(
-                                    "Best validation score: {}".format(
-                                        self.best_validation_score
-                                    )
-                                )
+                                print("Best validation score: {}".format(self.best_validation_score))
                                 return self
         return self
 
@@ -482,25 +449,17 @@ class VAMPNet_Multimer_AUG(VAMPNet_Multimer):
         batch_0, batch_t = data[0], data[1]
 
         if isinstance(data[0], np.ndarray):
-            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(device=self.device)
         if isinstance(data[1], np.ndarray):
-            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(device=self.device)
 
         self.optimizer.zero_grad()
 
         n_feat_per_sub = batch_0.shape[1] // self.multimer
 
         # augmenting training set by permutation
-        batch_0 = torch.concat(
-            [torch.roll(batch_0, n_feat_per_sub * i, 1) for i in range(self.multimer)]
-        )
-        batch_t = torch.concat(
-            [torch.roll(batch_t, n_feat_per_sub * i, 1) for i in range(self.multimer)]
-        )
+        batch_0 = torch.concat([torch.roll(batch_0, n_feat_per_sub * i, 1) for i in range(self.multimer)])
+        batch_t = torch.concat([torch.roll(batch_t, n_feat_per_sub * i, 1) for i in range(self.multimer)])
 
         x_0 = self.lobe(batch_0)
         x_t = self.lobe_timelagged(batch_t)
@@ -535,9 +494,7 @@ class VAMPNet_Multimer_AUG(VAMPNet_Multimer):
         else:
             loss_value_full = None
             loss_value_deg = None
-        self.append_training_score(
-            self._step, -loss_value, score_value_full, score_value_deg
-        )
+        self.append_training_score(self._step, -loss_value, score_value_full, score_value_deg)
 
         if train_score_callback is not None:
             lval_detached = loss_value.detach()
@@ -558,18 +515,8 @@ class VAMPNet_Multimer_AUG(VAMPNet_Multimer):
                 val = self.lobe(validation_data[0])
                 val_t = self.lobe_timelagged(validation_data[1])
                 # augmenting validation set by permutation
-                val_aug = torch.concat(
-                    [
-                        torch.roll(val, self.n_states * i, 1)
-                        for i in range(self.multimer)
-                    ]
-                )
-                val_t_aug = torch.concat(
-                    [
-                        torch.roll(val_t, self.n_states * i, 1)
-                        for i in range(self.multimer)
-                    ]
-                )
+                val_aug = torch.concat([torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)])
+                val_t_aug = torch.concat([torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)])
                 score_value = vamp_score(
                     val_aug,
                     val_t_aug,

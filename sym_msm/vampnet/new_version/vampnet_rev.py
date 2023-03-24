@@ -136,9 +136,7 @@ class VAMPNet_Multimer_Rev_Model(VAMPNet_Multimer, Transformer):
 
         return its
 
-    def observables(
-        self, data_0, data_t, data_ev=None, data_ac=None, state1=None, state2=None
-    ):
+    def observables(self, data_0, data_t, data_ev=None, data_ac=None, state1=None, state2=None):
         return_mu = False
         return_K = False
         return_S = False
@@ -173,9 +171,7 @@ class VAMPNet_Multimer_Rev_Model(VAMPNet_Multimer, Transformer):
                 ac_est = obs_ac(x_ac, mu, x_t, K, Sigma)
                 ret.append(ac_est.detach().to("cpu").numpy())
             if state1 is not None:
-                its_est = get_process_eigval(
-                    S, Sigma, state1, state2, epsilon=self._epsilon, mode=self._mode
-                )
+                its_est = get_process_eigval(S, Sigma, state1, state2, epsilon=self._epsilon, mode=self._mode)
                 ret.append(its_est.detach().to("cpu").numpy())
         return ret
 
@@ -216,12 +212,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
         )
         self.output_dim = n_states * multimer
 
-        self.ulayer = U_layer(
-            output_dim=self.output_dim, activation=torch.nn.ReLU()
-        ).to(device)
-        self.slayer = S_layer(
-            output_dim=self.output_dim, activation=torch.nn.ReLU(), renorm=True
-        ).to(device)
+        self.ulayer = U_layer(output_dim=self.output_dim, activation=torch.nn.ReLU()).to(device)
+        self.slayer = S_layer(output_dim=self.output_dim, activation=torch.nn.ReLU(), renorm=True).to(device)
         self.coarse_grain = coarse_grain
         if self.coarse_grain is not None:
             self.cg_list = []
@@ -232,30 +224,20 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 else:
                     dim_in = self.coarse_grain[i - 1]
                 self.cg_list.append(Coarse_grain(dim_in, dim_out).to(device))
-                self.cg_opt_list.append(
-                    torch.optim.Adam(self.cg_list[-1].parameters(), lr=0.1)
-                )
+                self.cg_opt_list.append(torch.optim.Adam(self.cg_list[-1].parameters(), lr=0.1))
         else:
             self.cg_list = None
         if mask is not None:
             self.mask = mask
-            self.optimizer_mask = torch.optim.Adam(
-                self.mask.parameters(), lr=self.learning_rate
-            )
+            self.optimizer_mask = torch.optim.Adam(self.mask.parameters(), lr=self.learning_rate)
         else:
             self.mask = torch.nn.Identity()
             self.optimizer_mask = None
 
         self.setup_optimizer(optimizer, list(self.lobe.parameters()))
-        self.optimizer_u = torch.optim.Adam(
-            self.ulayer.parameters(), lr=self.learning_rate * 10
-        )
-        self.optimizer_s = torch.optim.Adam(
-            self.slayer.parameters(), lr=self.learning_rate * 100
-        )
-        self.optimizer_lobe = torch.optim.Adam(
-            self.lobe.parameters(), lr=self.learning_rate
-        )
+        self.optimizer_u = torch.optim.Adam(self.ulayer.parameters(), lr=self.learning_rate * 10)
+        self.optimizer_s = torch.optim.Adam(self.slayer.parameters(), lr=self.learning_rate * 100)
+        self.optimizer_lobe = torch.optim.Adam(self.lobe.parameters(), lr=self.learning_rate)
         self.optimimzer_all = torch.optim.Adam(
             chain(
                 self.ulayer.parameters(),
@@ -338,9 +320,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
 
         :type: (T, 2) ndarray
         """
-        return np.concatenate(self._validation_ev).reshape(
-            -1, self._validation_ev[0].shape[0]
-        )
+        return np.concatenate(self._validation_ev).reshape(-1, self._validation_ev[0].shape[0])
 
     @property
     def validation_ac(self) -> np.ndarray:
@@ -348,9 +328,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
 
         :type: (T, 2) ndarray
         """
-        return np.concatenate(self._validation_ac).reshape(
-            -1, self._validation_ac[0].shape[0]
-        )
+        return np.concatenate(self._validation_ac).reshape(-1, self._validation_ac[0].shape[0])
 
     @property
     def validation_its(self) -> np.ndarray:
@@ -358,9 +336,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
 
         :type: (T, 2) ndarray
         """
-        return np.concatenate(self._validation_its).reshape(
-            -1, self._validation_its[0].shape[0]
-        )
+        return np.concatenate(self._validation_its).reshape(-1, self._validation_its[0].shape[0])
 
     @property
     def epsilon(self) -> float:
@@ -391,8 +367,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
     def score_method(self, value: str):
         if value not in valid_score_methods:
             raise ValueError(
-                f"Tried setting an unsupported scoring method '{value}', "
-                f"available are {valid_score_methods}."
+                f"Tried setting an unsupported scoring method '{value}', " f"available are {valid_score_methods}."
             )
         self._score_method = value
 
@@ -462,13 +437,9 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
             batch_0, batch_t = data[0], data[1]
 
             if isinstance(data[0], np.ndarray):
-                batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(
-                    device=self.device
-                )
+                batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(device=self.device)
             if isinstance(data[1], np.ndarray):
-                batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(
-                    device=self.device
-                )
+                batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(device=self.device)
 
             self.optimizer_lobe.zero_grad()
             self.optimizer_u.zero_grad()
@@ -501,9 +472,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 train_score_callback(self._step, -lval_detached)
             if tb_writer is not None:
                 tb_writer.add_scalars("Loss", {"train": loss_value.item()}, self._step)
-                tb_writer.add_scalars(
-                    "VAMPE", {"train": -loss_value.item()}, self._step
-                )
+                tb_writer.add_scalars("VAMPE", {"train": -loss_value.item()}, self._step)
             self._train_scores.append((self._step, (-loss_value).item()))
             self._step += 1
 
@@ -601,21 +570,13 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         with torch.no_grad():
                             scores = []
                             for val_batch in validation_loader:
-                                scores.append(
-                                    self.validate((val_batch[0], val_batch[1]))
-                                )
+                                scores.append(self.validate((val_batch[0], val_batch[1])))
                             mean_score = torch.mean(torch.stack(scores))
                             print(mean_score)
-                            self._validation_scores.append(
-                                (self._step, mean_score.item())
-                            )
+                            self._validation_scores.append((self._step, mean_score.item()))
                             if tb_writer is not None:
-                                tb_writer.add_scalars(
-                                    "Loss", {"valid": -mean_score.item()}, self._step
-                                )
-                                tb_writer.add_scalars(
-                                    "VAMPE", {"valid": mean_score.item()}, self._step
-                                )
+                                tb_writer.add_scalars("Loss", {"valid": -mean_score.item()}, self._step)
+                                tb_writer.add_scalars("VAMPE", {"valid": mean_score.item()}, self._step)
                             if validation_score_callback is not None:
                                 validation_score_callback(self._step, mean_score)
             else:
@@ -646,9 +607,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         if train_mode == "us":
                             self.optimizer_s.zero_grad()
 
-                        loss_value = vampe_loss_rev(x_0, x_t, self.ulayer, self.slayer)[
-                            0
-                        ]
+                        loss_value = vampe_loss_rev(x_0, x_t, self.ulayer, self.slayer)[0]
                         loss_value.backward()
                         torch.nn.utils.clip_grad_norm_(
                             chain(self.ulayer.parameters(), self.slayer.parameters()),
@@ -663,27 +622,15 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                             train_score_callback(self._step, -lval_detached)
                         self._train_scores.append((self._step, (-loss_value).item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"train": loss_value.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"train": -loss_value.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"train": loss_value.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"train": -loss_value.item()}, self._step)
                         if validation_loader is not None:
                             with torch.no_grad():
-                                score_val = -vampe_loss_rev(
-                                    x_val_0, x_val_t, self.ulayer, self.slayer
-                                )[0]
-                                self._validation_scores.append(
-                                    (self._step, score_val.item())
-                                )
+                                score_val = -vampe_loss_rev(x_val_0, x_val_t, self.ulayer, self.slayer)[0]
+                                self._validation_scores.append((self._step, score_val.item()))
                                 if tb_writer is not None:
-                                    tb_writer.add_scalars(
-                                        "Loss", {"valid": -score_val.item()}, self._step
-                                    )
-                                    tb_writer.add_scalars(
-                                        "VAMPE", {"valid": score_val.item()}, self._step
-                                    )
+                                    tb_writer.add_scalars("Loss", {"valid": -score_val.item()}, self._step)
+                                    tb_writer.add_scalars("VAMPE", {"valid": score_val.item()}, self._step)
                                 if validation_score_callback is not None:
                                     validation_score_callback(self._step, score_val)
                         self._step += 1
@@ -692,9 +639,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
 
                     with torch.no_grad():
                         v, C_00, C_11, C_01, Sigma = self.ulayer(x_0, x_t)
-                        v_val, C_00_val, C_11_val, C_01_val, Sigma_val = self.ulayer(
-                            x_val_0, x_val_t
-                        )
+                        v_val, C_00_val, C_11_val, C_01_val, Sigma_val = self.ulayer(x_val_0, x_val_t)
                     for epoch in progress(
                         range(n_epochs),
                         desc="Train s VAMPNet epoch",
@@ -703,13 +648,9 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                     ):
                         self.optimizer_s.zero_grad()
 
-                        loss_value = vampe_loss_rev_only_S(
-                            v, C_00, C_11, C_01, Sigma, self.slayer
-                        )[0]
+                        loss_value = vampe_loss_rev_only_S(v, C_00, C_11, C_01, Sigma, self.slayer)[0]
                         loss_value.backward()
-                        torch.nn.utils.clip_grad_norm_(
-                            self.slayer.parameters(), CLIP_VALUE
-                        )
+                        torch.nn.utils.clip_grad_norm_(self.slayer.parameters(), CLIP_VALUE)
                         self.optimizer_s.step()
 
                         if train_score_callback is not None:
@@ -717,12 +658,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                             train_score_callback(self._step, -lval_detached)
                         self._train_scores.append((self._step, (-loss_value).item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"train": -loss_value.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"train": loss_value.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"train": -loss_value.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"train": loss_value.item()}, self._step)
                         if validation_loader is not None:
                             with torch.no_grad():
                                 score_val = -vampe_loss_rev_only_S(
@@ -733,16 +670,10 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                     Sigma_val,
                                     self.slayer,
                                 )[0]
-                                self._validation_scores.append(
-                                    (self._step, score_val.item())
-                                )
+                                self._validation_scores.append((self._step, score_val.item()))
                                 if tb_writer is not None:
-                                    tb_writer.add_scalars(
-                                        "Loss", {"valid": -score_val.item()}, self._step
-                                    )
-                                    tb_writer.add_scalars(
-                                        "VAMPE", {"valid": score_val.item()}, self._step
-                                    )
+                                    tb_writer.add_scalars("Loss", {"valid": -score_val.item()}, self._step)
+                                    tb_writer.add_scalars("VAMPE", {"valid": score_val.item()}, self._step)
                                 if validation_score_callback is not None:
                                     validation_score_callback(self._step, score_val)
                         self._step += 1
@@ -838,9 +769,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         chi_tau.append(self.forward(batch_t).detach())
                     x_0 = torch.cat(chi_t, dim=0)
                     x_t = torch.cat(chi_tau, dim=0)
-                    score_value_before = -vampe_loss_rev(
-                        x_0, x_t, self.ulayer, self.slayer
-                    )[0].detach()
+                    score_value_before = -vampe_loss_rev(x_0, x_t, self.ulayer, self.slayer)[0].detach()
                 flag = True
                 # reduce the learning rate of u and S
                 for g in self.optimizer_u.param_groups:
@@ -851,11 +780,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 #             print('Score before loop', score_value_before.item())
                 if reset_u:
                     cov_00, cov_0t, cov_tt = covariances(x_0, x_t, remove_mean=False)
-                    cov_00_inv = (
-                        sym_inverse(cov_00, epsilon=self.epsilon, mode=self.score_mode)
-                        .to("cpu")
-                        .numpy()
-                    )
+                    cov_00_inv = sym_inverse(cov_00, epsilon=self.epsilon, mode=self.score_mode).to("cpu").numpy()
 
                     K_vamp = cov_00_inv @ cov_0t.to("cpu").numpy()
 
@@ -907,12 +832,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         mean_score = torch.mean(torch.stack(scores))
                         self._validation_scores.append((self._step, mean_score.item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"valid": -mean_score.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"valid": mean_score.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"valid": -mean_score.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"valid": mean_score.item()}, self._step)
                         if validation_score_callback is not None:
                             validation_score_callback(self._step, mean_score)
             for g in self.optimizer_lobe.param_groups:
@@ -997,17 +918,15 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                     for opt in self.cg_opt_list:
                         opt.zero_grad()
 
-                    v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(
-                        chi_t, chi_tau, return_u=True
-                    )
+                    v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(chi_t, chi_tau, return_u=True)
                     matrix, S_n = self.slayer(v, C00, Ctt, C0t, Sigma, return_S=True)
 
                     chi_t_n, chi_tau_n = chi_t, chi_tau
                     loss_value = torch.trace(matrix)
                     for cg_id in range(len(self.coarse_grain)):
-                        matrix_cg, chi_t_n, chi_tau_n, u_n, S_n = self.cg_list[
-                            cg_id
-                        ].get_cg_uS(chi_t_n, chi_tau_n, u_n, S_n, return_chi=True)
+                        matrix_cg, chi_t_n, chi_tau_n, u_n, S_n = self.cg_list[cg_id].get_cg_uS(
+                            chi_t_n, chi_tau_n, u_n, S_n, return_chi=True
+                        )
                         loss_value += torch.trace(matrix_cg)
 
                     loss_value.backward()
@@ -1027,21 +946,13 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         train_score_callback(self._step, -lval_detached)
                     self._train_scores.append((self._step, (-loss_value).item()))
                     if tb_writer is not None:
-                        tb_writer.add_scalars(
-                            "Loss", {"cg_train": loss_value.item()}, self._step
-                        )
-                        tb_writer.add_scalars(
-                            "VAMPE", {"cg_train": -loss_value.item()}, self._step
-                        )
+                        tb_writer.add_scalars("Loss", {"cg_train": loss_value.item()}, self._step)
+                        tb_writer.add_scalars("VAMPE", {"cg_train": -loss_value.item()}, self._step)
 
                     if validation_loader is not None:
                         with torch.no_grad():
-                            v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(
-                                chi_val_t, chi_val_tau, return_u=True
-                            )
-                            matrix, S_n = self.slayer(
-                                v, C00, Ctt, C0t, Sigma, return_S=True
-                            )
+                            v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(chi_val_t, chi_val_tau, return_u=True)
+                            matrix, S_n = self.slayer(v, C00, Ctt, C0t, Sigma, return_S=True)
                             chi_val_t_n, chi_val_tau_n = chi_val_t, chi_val_tau
                             loss_value = torch.trace(matrix)
                             for cg_id in range(len(self.coarse_grain)):
@@ -1060,24 +971,16 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                 )
                                 loss_value += torch.trace(matrix_cg)
                             score_val = -loss_value
-                            self._validation_scores.append(
-                                (self._step, score_val.item())
-                            )
+                            self._validation_scores.append((self._step, score_val.item()))
                             if tb_writer is not None:
-                                tb_writer.add_scalars(
-                                    "Loss", {"cg_valid": -score_val.item()}, self._step
-                                )
-                                tb_writer.add_scalars(
-                                    "VAMPE", {"cg_valid": score_val.item()}, self._step
-                                )
+                                tb_writer.add_scalars("Loss", {"cg_valid": -score_val.item()}, self._step)
+                                tb_writer.add_scalars("VAMPE", {"cg_valid": score_val.item()}, self._step)
                             if validation_score_callback is not None:
                                 validation_score_callback(self._step, score_val)
                     self._step += 1
             elif train_mode == "single":
                 with torch.no_grad():
-                    v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(
-                        chi_t, chi_tau, return_u=True
-                    )
+                    v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(chi_t, chi_tau, return_u=True)
                     _, S_n = self.slayer(v, C00, Ctt, C0t, Sigma, return_S=True)
 
                     if idx > 0:
@@ -1094,13 +997,9 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                             Sigma_val,
                             u_n_val,
                         ) = self.ulayer(chi_val_t, chi_val_tau, return_u=True)
-                        _, S_n_val = self.slayer(
-                            v_val, C00_val, Ctt_val, C0t_val, Sigma_val, return_S=True
-                        )
+                        _, S_n_val = self.slayer(v_val, C00_val, Ctt_val, C0t_val, Sigma_val, return_S=True)
                         for cg_id in range(idx):
-                            _, chi_val_t, chi_val_tau, u_n_val, S_n_val = self.cg_list[
-                                cg_id
-                            ].get_cg_uS(
+                            _, chi_val_t, chi_val_tau, u_n_val, S_n_val = self.cg_list[cg_id].get_cg_uS(
                                 chi_val_t,
                                 chi_val_tau,
                                 u_n_val,
@@ -1114,14 +1013,10 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                     leave=False,
                 ):
                     self.cg_opt_list[idx].zero_grad()
-                    matrix_cg = self.cg_list[idx].get_cg_uS(
-                        chi_t, chi_tau, u_n, S_n, return_chi=False
-                    )[0]
+                    matrix_cg = self.cg_list[idx].get_cg_uS(chi_t, chi_tau, u_n, S_n, return_chi=False)[0]
                     loss_value = torch.trace(matrix_cg)
                     loss_value.backward()
-                    torch.nn.utils.clip_grad_norm_(
-                        self.cg_list[idx].parameters(), CLIP_VALUE
-                    )
+                    torch.nn.utils.clip_grad_norm_(self.cg_list[idx].parameters(), CLIP_VALUE)
                     self.cg_opt_list[idx].step()
 
                     if train_score_callback is not None:
@@ -1129,12 +1024,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         train_score_callback(self._step, -lval_detached)
                     self._train_scores.append((self._step, (-loss_value).item()))
                     if tb_writer is not None:
-                        tb_writer.add_scalars(
-                            "Loss", {"cg_train": loss_value.item()}, self._step
-                        )
-                        tb_writer.add_scalars(
-                            "VAMPE", {"cg_train": -loss_value.item()}, self._step
-                        )
+                        tb_writer.add_scalars("Loss", {"cg_train": loss_value.item()}, self._step)
+                        tb_writer.add_scalars("VAMPE", {"cg_train": -loss_value.item()}, self._step)
                     if validation_loader is not None:
                         with torch.no_grad():
                             matrix_cg = self.cg_list[idx].get_cg_uS(
@@ -1147,16 +1038,10 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
 
                             score_val = -torch.trace(matrix_cg)
 
-                            self._validation_scores.append(
-                                (self._step, score_val.item())
-                            )
+                            self._validation_scores.append((self._step, score_val.item()))
                             if tb_writer is not None:
-                                tb_writer.add_scalars(
-                                    "Loss", {"cg_valid": score_val.item()}, self._step
-                                )
-                                tb_writer.add_scalars(
-                                    "VAMPE", {"cg_valid": -score_val.item()}, self._step
-                                )
+                                tb_writer.add_scalars("Loss", {"cg_valid": score_val.item()}, self._step)
+                                tb_writer.add_scalars("VAMPE", {"cg_valid": -score_val.item()}, self._step)
                             if validation_score_callback is not None:
                                 validation_score_callback(self._step, score_val)
 
@@ -1224,45 +1109,29 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 return_mu = True
                 batch_ev = data_ev
                 if isinstance(data_ev, np.ndarray):
-                    batch_ev = torch.from_numpy(data_ev.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    batch_ev = torch.from_numpy(data_ev.astype(self.dtype)).to(device=self.device)
                 if isinstance(exp_ev, np.ndarray):
-                    exp_ev = torch.from_numpy(exp_ev.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    exp_ev = torch.from_numpy(exp_ev.astype(self.dtype)).to(device=self.device)
                 if isinstance(xi_ev, np.ndarray):
-                    xi_ev = torch.from_numpy(xi_ev.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    xi_ev = torch.from_numpy(xi_ev.astype(self.dtype)).to(device=self.device)
             if exp_ac is not None:
                 return_mu = True
                 return_K = True
                 return_Sigma = True
                 batch_ac = data_ac
                 if isinstance(data_ac, np.ndarray):
-                    batch_ac = torch.from_numpy(data_ac.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    batch_ac = torch.from_numpy(data_ac.astype(self.dtype)).to(device=self.device)
                 if isinstance(exp_ac, np.ndarray):
-                    exp_ac = torch.from_numpy(exp_ac.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    exp_ac = torch.from_numpy(exp_ac.astype(self.dtype)).to(device=self.device)
                 if isinstance(xi_ac, np.ndarray):
-                    xi_ac = torch.from_numpy(xi_ac.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    xi_ac = torch.from_numpy(xi_ac.astype(self.dtype)).to(device=self.device)
             if exp_its is not None:
                 return_S = True
                 return_Sigma = True
                 if isinstance(exp_its, np.ndarray):
-                    exp_its = torch.from_numpy(exp_its.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    exp_its = torch.from_numpy(exp_its.astype(self.dtype)).to(device=self.device)
                 if isinstance(xi_its, np.ndarray):
-                    xi_its = torch.from_numpy(xi_its.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    xi_its = torch.from_numpy(xi_its.astype(self.dtype)).to(device=self.device)
 
             self.optimizer_lobe.zero_grad()
             self.optimizer_u.zero_grad()
@@ -1299,9 +1168,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 loss_ev, est_ev = obs_ev_loss(batch_ev, mu, exp_ev, xi_ev)
                 loss_value += loss_ev
             if exp_ac is not None:
-                loss_ac, est_ac = obs_ac_loss(
-                    batch_ac, mu, x_t, K, Sigma, exp_ac, xi_ac
-                )
+                loss_ac, est_ac = obs_ac_loss(batch_ac, mu, x_t, K, Sigma, exp_ac, xi_ac)
                 loss_value += loss_ac
             if exp_its is not None:
                 loss_its, est_its = obs_its_loss(
@@ -1340,27 +1207,17 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 tb_writer.add_scalars("Loss", {"train": loss_value.item()}, self._step)
                 tb_writer.add_scalars("VAMPE", {"train": vampe_loss.item()}, self._step)
             if exp_ev is not None:
-                self._train_ev.append(
-                    np.concatenate(([self._step], (est_ev).detach().to("cpu").numpy()))
-                )
+                self._train_ev.append(np.concatenate(([self._step], (est_ev).detach().to("cpu").numpy())))
                 if tb_writer is not None:
                     for i in range(est_ev.shape[0]):
-                        tb_writer.add_scalars(
-                            "EV", {"train_" + str(i + 1): est_ev[i].item()}, self._step
-                        )
+                        tb_writer.add_scalars("EV", {"train_" + str(i + 1): est_ev[i].item()}, self._step)
             if exp_ac is not None:
-                self._train_ac.append(
-                    np.concatenate(([self._step], (est_ac).detach().to("cpu").numpy()))
-                )
+                self._train_ac.append(np.concatenate(([self._step], (est_ac).detach().to("cpu").numpy())))
                 if tb_writer is not None:
                     for i in range(est_ac.shape[0]):
-                        tb_writer.add_scalars(
-                            "AC", {"train_" + str(i + 1): est_ac[i].item()}, self._step
-                        )
+                        tb_writer.add_scalars("AC", {"train_" + str(i + 1): est_ac[i].item()}, self._step)
             if exp_its is not None:
-                self._train_its.append(
-                    np.concatenate(([self._step], (est_its).detach().to("cpu").numpy()))
-                )
+                self._train_its.append(np.concatenate(([self._step], (est_its).detach().to("cpu").numpy())))
                 if tb_writer is not None:
                     for i in range(est_its.shape[0]):
                         tb_writer.add_scalars(
@@ -1409,45 +1266,29 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
             return_mu = True
             batch_ev = val_data_ev
             if isinstance(val_data_ev, np.ndarray):
-                batch_ev = torch.from_numpy(val_data_ev.astype(self.dtype)).to(
-                    device=self.device
-                )
+                batch_ev = torch.from_numpy(val_data_ev.astype(self.dtype)).to(device=self.device)
             if isinstance(exp_ev, np.ndarray):
-                exp_ev = torch.from_numpy(exp_ev.astype(self.dtype)).to(
-                    device=self.device
-                )
+                exp_ev = torch.from_numpy(exp_ev.astype(self.dtype)).to(device=self.device)
             if isinstance(xi_ev, np.ndarray):
-                xi_ev = torch.from_numpy(xi_ev.astype(self.dtype)).to(
-                    device=self.device
-                )
+                xi_ev = torch.from_numpy(xi_ev.astype(self.dtype)).to(device=self.device)
         if exp_ac is not None:
             return_mu = True
             return_K = True
             return_Sigma = True
             batch_ac = val_data_ac
             if isinstance(val_data_ac, np.ndarray):
-                batch_ac = torch.from_numpy(val_data_ac.astype(self.dtype)).to(
-                    device=self.device
-                )
+                batch_ac = torch.from_numpy(val_data_ac.astype(self.dtype)).to(device=self.device)
             if isinstance(exp_ac, np.ndarray):
-                exp_ac = torch.from_numpy(exp_ac.astype(self.dtype)).to(
-                    device=self.device
-                )
+                exp_ac = torch.from_numpy(exp_ac.astype(self.dtype)).to(device=self.device)
             if isinstance(xi_ac, np.ndarray):
-                xi_ac = torch.from_numpy(xi_ac.astype(self.dtype)).to(
-                    device=self.device
-                )
+                xi_ac = torch.from_numpy(xi_ac.astype(self.dtype)).to(device=self.device)
         if exp_its is not None:
             return_S = True
             return_Sigma = True
             if isinstance(exp_its, np.ndarray):
-                exp_its = torch.from_numpy(exp_its.astype(self.dtype)).to(
-                    device=self.device
-                )
+                exp_its = torch.from_numpy(exp_its.astype(self.dtype)).to(device=self.device)
             if isinstance(xi_its, np.ndarray):
-                xi_its = torch.from_numpy(xi_its.astype(self.dtype)).to(
-                    device=self.device
-                )
+                xi_its = torch.from_numpy(xi_its.astype(self.dtype)).to(device=self.device)
         with torch.no_grad():
             val = self.forward(validation_data[0])
             val_t = self.forward(validation_data[1])
@@ -1480,9 +1321,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 score_value += loss_ev
                 ret.append(est_ev)
             if exp_ac is not None:
-                loss_ac, est_ac = obs_ac_loss(
-                    batch_ac, mu, val_t, K, Sigma, exp_ac, xi_ac
-                )
+                loss_ac, est_ac = obs_ac_loss(batch_ac, mu, val_t, K, Sigma, exp_ac, xi_ac)
                 score_value += loss_ac
                 ret.append(est_ac)
             if exp_its is not None:
@@ -1562,39 +1401,27 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 if isinstance(xi_ev, list):
                     xi_ev = np.array(xi_ev)
                 if isinstance(exp_ev, np.ndarray):
-                    exp_ev = torch.from_numpy(exp_ev.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    exp_ev = torch.from_numpy(exp_ev.astype(self.dtype)).to(device=self.device)
                 if isinstance(xi_ev, np.ndarray):
-                    xi_ev = torch.from_numpy(xi_ev.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    xi_ev = torch.from_numpy(xi_ev.astype(self.dtype)).to(device=self.device)
             if exp_ac is not None:
                 if isinstance(exp_ac, list):
                     exp_ac = np.array(exp_ac)
                 if isinstance(xi_ac, list):
                     xi_ac = np.array(xi_ac)
                 if isinstance(exp_ac, np.ndarray):
-                    exp_ac = torch.from_numpy(exp_ac.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    exp_ac = torch.from_numpy(exp_ac.astype(self.dtype)).to(device=self.device)
                 if isinstance(xi_ac, np.ndarray):
-                    xi_ac = torch.from_numpy(xi_ac.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    xi_ac = torch.from_numpy(xi_ac.astype(self.dtype)).to(device=self.device)
             if exp_its is not None:
                 if isinstance(exp_its, list):
                     exp_its = np.array(exp_its)
                 if isinstance(xi_its, list):
                     xi_its = np.array(xi_its)
                 if isinstance(exp_its, np.ndarray):
-                    exp_its = torch.from_numpy(exp_its.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    exp_its = torch.from_numpy(exp_its.astype(self.dtype)).to(device=self.device)
                 if isinstance(xi_its, np.ndarray):
-                    xi_its = torch.from_numpy(xi_its.astype(self.dtype)).to(
-                        device=self.device
-                    )
+                    xi_its = torch.from_numpy(xi_its.astype(self.dtype)).to(device=self.device)
             # and train
             if train_mode == "all":
                 for epoch in progress(
@@ -1676,20 +1503,12 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                     scores_its.append(all_scores[-1])
 
                             mean_score = torch.mean(torch.stack(scores))
-                            self._validation_scores.append(
-                                (self._step, mean_score.item())
-                            )
+                            self._validation_scores.append((self._step, mean_score.item()))
                             mean_vampe = torch.mean(torch.stack(scores_vampe))
-                            self._validation_vampe.append(
-                                (self._step, mean_vampe.item())
-                            )
+                            self._validation_vampe.append((self._step, mean_vampe.item()))
                             if tb_writer is not None:
-                                tb_writer.add_scalars(
-                                    "Loss", {"valid": mean_score.item()}, self._step
-                                )
-                                tb_writer.add_scalars(
-                                    "VAMPE", {"valid": mean_vampe.item()}, self._step
-                                )
+                                tb_writer.add_scalars("Loss", {"valid": mean_score.item()}, self._step)
+                                tb_writer.add_scalars("VAMPE", {"valid": mean_vampe.item()}, self._step)
                             if exp_ev is not None:
                                 mean_ev = torch.mean(torch.stack(scores_ev), dim=0)
                                 self._validation_ev.append(
@@ -1833,9 +1652,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                             loss_ev, est_ev = obs_ev_loss(x_ev, mu, exp_ev, xi_ev)
                             loss_value += loss_ev
                             self._train_ev.append(
-                                np.concatenate(
-                                    ([self._step], (est_ev).detach().to("cpu").numpy())
-                                )
+                                np.concatenate(([self._step], (est_ev).detach().to("cpu").numpy()))
                             )
                             if tb_writer is not None:
                                 for i in range(est_ev.shape[0]):
@@ -1845,14 +1662,10 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         self._step,
                                     )
                         if exp_ac is not None:
-                            loss_ac, est_ac = obs_ac_loss(
-                                x_ac, mu, x_t, K, Sigma, exp_ac, xi_ac
-                            )
+                            loss_ac, est_ac = obs_ac_loss(x_ac, mu, x_t, K, Sigma, exp_ac, xi_ac)
                             loss_value += loss_ac
                             self._train_ac.append(
-                                np.concatenate(
-                                    ([self._step], (est_ac).detach().to("cpu").numpy())
-                                )
+                                np.concatenate(([self._step], (est_ac).detach().to("cpu").numpy()))
                             )
                             if tb_writer is not None:
                                 for i in range(est_ac.shape[0]):
@@ -1874,9 +1687,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                             )
                             loss_value += loss_its
                             self._train_its.append(
-                                np.concatenate(
-                                    ([self._step], (est_its).detach().to("cpu").numpy())
-                                )
+                                np.concatenate(([self._step], (est_its).detach().to("cpu").numpy()))
                             )
                             if tb_writer is not None:
                                 for i in range(est_its.shape[0]):
@@ -1900,12 +1711,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         self._train_scores.append((self._step, (loss_value).item()))
                         self._train_vampe.append((self._step, (vampe_loss).item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"train": loss_value.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"train": vampe_loss.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"train": loss_value.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"train": vampe_loss.item()}, self._step)
                         if validation_loader is not None:
                             with torch.no_grad():
                                 output_loss = vampe_loss_rev(
@@ -1932,9 +1739,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                 if return_Sigma:
                                     Sigma = output_loss[-1]
                                 if exp_ev is not None:
-                                    loss_ev, est_ev = obs_ev_loss(
-                                        x_val_ev, mu, exp_ev, xi_ev
-                                    )
+                                    loss_ev, est_ev = obs_ev_loss(x_val_ev, mu, exp_ev, xi_ev)
                                     score_val += loss_ev
                                     self._validation_ev.append(
                                         np.concatenate(
@@ -1948,16 +1753,11 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         for i in range(est_ev.shape[0]):
                                             tb_writer.add_scalars(
                                                 "EV",
-                                                {
-                                                    "valid_"
-                                                    + str(i + 1): est_ev[i].item()
-                                                },
+                                                {"valid_" + str(i + 1): est_ev[i].item()},
                                                 self._step,
                                             )
                                 if exp_ac is not None:
-                                    loss_ac, est_ac = obs_ac_loss(
-                                        x_val_ac, mu, x_val_t, K, Sigma, exp_ac, xi_ac
-                                    )
+                                    loss_ac, est_ac = obs_ac_loss(x_val_ac, mu, x_val_t, K, Sigma, exp_ac, xi_ac)
                                     score_val += loss_ac
                                     self._validation_ac.append(
                                         np.concatenate(
@@ -1971,10 +1771,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         for i in range(est_ac.shape[0]):
                                             tb_writer.add_scalars(
                                                 "AC",
-                                                {
-                                                    "valid_"
-                                                    + str(i + 1): est_ac[i].item()
-                                                },
+                                                {"valid_" + str(i + 1): est_ac[i].item()},
                                                 self._step,
                                             )
                                 if exp_its is not None:
@@ -2001,22 +1798,13 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         for i in range(est_its.shape[0]):
                                             tb_writer.add_scalars(
                                                 "ITS",
-                                                {
-                                                    "valid_"
-                                                    + str(i + 1): est_its[i].item()
-                                                },
+                                                {"valid_" + str(i + 1): est_its[i].item()},
                                                 self._step,
                                             )
-                                self._validation_scores.append(
-                                    (self._step, score_val.item())
-                                )
-                                self._validation_vampe.append(
-                                    (self._step, vampe_loss.item())
-                                )
+                                self._validation_scores.append((self._step, score_val.item()))
+                                self._validation_vampe.append((self._step, vampe_loss.item()))
                                 if tb_writer is not None:
-                                    tb_writer.add_scalars(
-                                        "Loss", {"valid": score_val.item()}, self._step
-                                    )
+                                    tb_writer.add_scalars("Loss", {"valid": score_val.item()}, self._step)
                                     tb_writer.add_scalars(
                                         "VAMPE",
                                         {"valid": vampe_loss.item()},
@@ -2028,9 +1816,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 if train_mode == "s":
                     with torch.no_grad():
                         output_u = self.ulayer(x_0, x_t, return_mu=return_mu)
-                        output_val_u = self.ulayer(
-                            x_val_0, x_val_t, return_mu=return_mu
-                        )
+                        output_val_u = self.ulayer(x_val_0, x_val_t, return_mu=return_mu)
                         if return_mu:
                             mu = output_u[-1]
                             mu_val = output_val_u[-1]
@@ -2058,14 +1844,10 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         if return_S:
                             S = output_loss[-1]
                         if exp_ac is not None:
-                            loss_ac, est_ac = obs_ac_loss(
-                                x_ac, mu, x_t, K, Sigma, exp_ac, xi_ac
-                            )
+                            loss_ac, est_ac = obs_ac_loss(x_ac, mu, x_t, K, Sigma, exp_ac, xi_ac)
                             loss_value += loss_ac
                             self._train_ac.append(
-                                np.concatenate(
-                                    ([self._step], (est_ac).detach().to("cpu").numpy())
-                                )
+                                np.concatenate(([self._step], (est_ac).detach().to("cpu").numpy()))
                             )
                             if tb_writer is not None:
                                 for i in range(est_ac.shape[0]):
@@ -2087,9 +1869,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                             )
                             loss_value += loss_its
                             self._train_its.append(
-                                np.concatenate(
-                                    ([self._step], (est_its).detach().to("cpu").numpy())
-                                )
+                                np.concatenate(([self._step], (est_its).detach().to("cpu").numpy()))
                             )
                             if tb_writer is not None:
                                 for i in range(est_its.shape[0]):
@@ -2099,9 +1879,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         self._step,
                                     )
                         loss_value.backward()
-                        torch.nn.utils.clip_grad_norm_(
-                            self.slayer.parameters(), CLIP_VALUE
-                        )
+                        torch.nn.utils.clip_grad_norm_(self.slayer.parameters(), CLIP_VALUE)
                         self.optimizer_s.step()
 
                         if train_score_callback is not None:
@@ -2110,12 +1888,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                         self._train_scores.append((self._step, (loss_value).item()))
                         self._train_vampe.append((self._step, (vampe_loss).item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"train": loss_value.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"train": vampe_loss.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"train": loss_value.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"train": vampe_loss.item()}, self._step)
                         if validation_loader is not None:
                             with torch.no_grad():
                                 output_loss = vampe_loss_rev_only_S(
@@ -2153,10 +1927,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         for i in range(est_ac.shape[0]):
                                             tb_writer.add_scalars(
                                                 "AC",
-                                                {
-                                                    "valid_"
-                                                    + str(i + 1): est_ac[i].item()
-                                                },
+                                                {"valid_" + str(i + 1): est_ac[i].item()},
                                                 self._step,
                                             )
                                 if exp_its is not None:
@@ -2183,22 +1954,13 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                                         for i in range(est_its.shape[0]):
                                             tb_writer.add_scalars(
                                                 "ITS",
-                                                {
-                                                    "valid_"
-                                                    + str(i + 1): est_its[i].item()
-                                                },
+                                                {"valid_" + str(i + 1): est_its[i].item()},
                                                 self._step,
                                             )
-                                self._validation_scores.append(
-                                    (self._step, score_val.item())
-                                )
-                                self._validation_vampe.append(
-                                    (self._step, vampe_loss.item())
-                                )
+                                self._validation_scores.append((self._step, score_val.item()))
+                                self._validation_vampe.append((self._step, vampe_loss.item()))
                                 if tb_writer is not None:
-                                    tb_writer.add_scalars(
-                                        "Loss", {"valid": score_val.item()}, self._step
-                                    )
+                                    tb_writer.add_scalars("Loss", {"valid": score_val.item()}, self._step)
                                     tb_writer.add_scalars(
                                         "VAMPE",
                                         {"valid": vampe_loss.item()},
@@ -2253,11 +2015,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
         chi_tau = torch.cat(chi_tau, dim=0)
 
         cov_00, cov_0t, cov_tt = covariances(chi_t, chi_tau, remove_mean=False)
-        cov_00_inv = (
-            sym_inverse(cov_00, epsilon=self.epsilon, mode=self.score_mode)
-            .to("cpu")
-            .numpy()
-        )
+        cov_00_inv = sym_inverse(cov_00, epsilon=self.epsilon, mode=self.score_mode).to("cpu").numpy()
         K_vamp = cov_00_inv @ cov_0t.to("cpu").numpy()
         # estimate pi, the stationary distribution vector
         eigv, eigvec = np.linalg.eig(K_vamp.T)
@@ -2284,10 +2042,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 Sigma = Sigma
 
                 sigma_inv = (
-                    sym_inverse(Sigma, epsilon=self.epsilon, mode=self.score_mode)
-                    .detach()
-                    .to("cpu")
-                    .numpy()
+                    sym_inverse(Sigma, epsilon=self.epsilon, mode=self.score_mode).detach().to("cpu").numpy()
                 )
             # reverse the construction of S
             S_nonrev = K_vamp @ sigma_inv
@@ -2314,9 +2069,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
         chi_tau = torch.cat(chi_tau, dim=0)
 
         u_kernel = np.ones(self.output_dim)
-        K_vamp = np.ones((self.output_dim, self.output_dim)) + np.diag(
-            np.ones(self.output_dim)
-        )
+        K_vamp = np.ones((self.output_dim, self.output_dim)) + np.diag(np.ones(self.output_dim))
         K_vamp = K_vamp / np.sum(K_vamp, axis=1, keepdims=True)
         with torch.no_grad():
             for param in self.ulayer.parameters():
@@ -2326,12 +2079,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
             _, _, _, _, Sigma = self.ulayer(chi_t, chi_tau)
             Sigma = Sigma
 
-            sigma_inv = (
-                sym_inverse(Sigma, epsilon=self.epsilon, mode=self.score_mode)
-                .detach()
-                .to("cpu")
-                .numpy()
-            )
+            sigma_inv = sym_inverse(Sigma, epsilon=self.epsilon, mode=self.score_mode).detach().to("cpu").numpy()
         # reverse the construction of S
         S_nonrev = K_vamp @ sigma_inv
         S_rev_add = 1 / 2 * (S_nonrev + S_nonrev.T)
@@ -2346,12 +2094,8 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
             for param in self.slayer.parameters():
                 param.copy_(torch.Tensor(kernel_S))
         if reset_opt:
-            self.optimizer_u = torch.optim.Adam(
-                self.ulayer.parameters(), lr=self.learning_rate * 10
-            )
-            self.optimizer_s = torch.optim.Adam(
-                self.slayer.parameters(), lr=self.learning_rate * 100
-            )
+            self.optimizer_u = torch.optim.Adam(self.ulayer.parameters(), lr=self.learning_rate * 10)
+            self.optimizer_s = torch.optim.Adam(self.slayer.parameters(), lr=self.learning_rate * 100)
 
     def reset_u_S_wo(self):
         u_kernel = np.ones(self.output_dim)
@@ -2365,17 +2109,11 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
                 param.copy_(torch.Tensor(S_kernel))
 
     def reset_opt_u_S(self, lr=1):
-        self.optimizer_u = torch.optim.Adam(
-            self.ulayer.parameters(), lr=self.learning_rate * 10 * lr
-        )
-        self.optimizer_s = torch.optim.Adam(
-            self.slayer.parameters(), lr=self.learning_rate * 100 * lr
-        )
+        self.optimizer_u = torch.optim.Adam(self.ulayer.parameters(), lr=self.learning_rate * 10 * lr)
+        self.optimizer_s = torch.optim.Adam(self.slayer.parameters(), lr=self.learning_rate * 100 * lr)
 
     def reset_opt_all(self, lr=1):
-        self.optimizer_lobe = torch.optim.Adam(
-            self.lobe.parameters(), lr=self.learning_rate * lr
-        )
+        self.optimizer_lobe = torch.optim.Adam(self.lobe.parameters(), lr=self.learning_rate * lr)
         self.optimimzer_all = torch.optim.Adam(
             chain(
                 self.ulayer.parameters(),
@@ -2384,25 +2122,15 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
             ),
             lr=self.learning_rate * lr,
         )
-        self.optimizer_u = torch.optim.Adam(
-            self.ulayer.parameters(), lr=self.learning_rate * 10 * lr
-        )
-        self.optimizer_s = torch.optim.Adam(
-            self.slayer.parameters(), lr=self.learning_rate * 100 * lr
-        )
+        self.optimizer_u = torch.optim.Adam(self.ulayer.parameters(), lr=self.learning_rate * 10 * lr)
+        self.optimizer_s = torch.optim.Adam(self.slayer.parameters(), lr=self.learning_rate * 100 * lr)
 
-    def initialize_cg_layer(
-        self, idx: int, data_loader: torch.utils.data.DataLoader, factor: float = 1.0
-    ):
+    def initialize_cg_layer(self, idx: int, data_loader: torch.utils.data.DataLoader, factor: float = 1.0):
         """Initilize the coarse_layer[idx] with the pcca_memberships"""
 
-        assert (
-            self.coarse_grain is not None
-        ), f"The estimator has no coarse-graining layers"
+        assert self.coarse_grain is not None, f"The estimator has no coarse-graining layers"
 
-        assert idx < len(
-            self.coarse_grain
-        ), f"The chosen idx of the coarse graining layer {idx} does not exist"
+        assert idx < len(self.coarse_grain), f"The chosen idx of the coarse graining layer {idx} does not exist"
 
         # First estimate the values of u and S before the coarse layer idx
         with torch.no_grad():
@@ -2414,9 +2142,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
             chi_tau = torch.cat(chi_tau, dim=0)
 
             v, C00, Ctt, C0t, Sigma, u_n = self.ulayer(chi_t, chi_tau, return_u=True)
-            _, K_n, S_n = self.slayer(
-                v, C00, Ctt, C0t, Sigma, return_S=True, return_K=True
-            )
+            _, K_n, S_n = self.slayer(v, C00, Ctt, C0t, Sigma, return_S=True, return_K=True)
 
             for cg_id in range(idx):
                 _, chi_t, chi_tau, u_n, S_n, K_n = self.cg_list[cg_id].get_cg_uS(
@@ -2454,9 +2180,7 @@ class VAMPNet_Multimer_Rev(VAMPNet_Multimer, Transformer, DLEstimatorMixin):
 
     def reset_cg(self, idx=0, lr=0.1):
         with torch.no_grad():
-            self.cg_list[idx].weight.copy_(
-                torch.ones((self.cg_list[idx].N, self.cg_list[idx].M))
-            )
+            self.cg_list[idx].weight.copy_(torch.ones((self.cg_list[idx].N, self.cg_list[idx].M)))
         self.cg_opt_list[idx] = torch.optim.Adam(self.cg_list[idx].parameters(), lr=lr)
 
         return

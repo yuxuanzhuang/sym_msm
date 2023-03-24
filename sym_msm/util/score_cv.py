@@ -26,8 +26,6 @@ def score_cv(data, dim, lag, number_of_splits=10, validation_fraction=0.5):
         scores = np.zeros(number_of_splits)
         for n in range(number_of_splits):
             ival = np.random.choice(len(data), size=nval, replace=False)
-            vamp = pyemma.coordinates.vamp(
-                [d for i, d in enumerate(data) if i not in ival], lag=lag, dim=dim
-            )
+            vamp = pyemma.coordinates.vamp([d for i, d in enumerate(data) if i not in ival], lag=lag, dim=dim)
             scores[n] = vamp.score([d for i, d in enumerate(data) if i in ival])
     return scores

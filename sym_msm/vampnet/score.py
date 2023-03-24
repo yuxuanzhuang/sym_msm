@@ -40,12 +40,9 @@ def vamp_score_rev(
         The score. It contains a contribution of :math:`+1` for the constant singular function since the
         internally estimated Koopman operator is defined on a decorrelated basis set.
     """
-    assert (
-        method in valid_score_methods
-    ), f"Invalid method '{method}', supported are {valid_score_methods}"
+    assert method in valid_score_methods, f"Invalid method '{method}', supported are {valid_score_methods}"
     assert data.shape == data_lagged.shape, (
-        f"Data and data_lagged must be of same shape but were {data.shape} "
-        f"and {data_lagged.shape}."
+        f"Data and data_lagged must be of same shape but were {data.shape} " f"and {data_lagged.shape}."
     )
     out = None
     if method == "VAMP1":
@@ -75,10 +72,7 @@ def vamp_score_rev(
         v_t = v.t()
         s = torch.diag(s)
 
-        out = torch.trace(
-            2.0 * multi_dot([s, u_t, c0t, v])
-            - multi_dot([s, u_t, c00, u, s, v_t, ctt, v])
-        )
+        out = torch.trace(2.0 * multi_dot([s, u_t, c0t, v]) - multi_dot([s, u_t, c00, u, s, v_t, ctt, v]))
     assert out is not None
     return 1 + out
 
@@ -159,12 +153,9 @@ def vamp_score_sym(
         The score. It contains a contribution of :math:`+1` for the constant singular function since the
         internally estimated Koopman operator is defined on a decorrelated basis set.
     """
-    assert (
-        method in valid_score_methods
-    ), f"Invalid method '{method}', supported are {valid_score_methods}"
+    assert method in valid_score_methods, f"Invalid method '{method}', supported are {valid_score_methods}"
     assert data.shape == data_lagged.shape, (
-        f"Data and data_lagged must be of same shape but were {data.shape} "
-        f"and {data_lagged.shape}."
+        f"Data and data_lagged must be of same shape but were {data.shape} " f"and {data_lagged.shape}."
     )
     out = None
     if method == "VAMP1":
@@ -196,8 +187,7 @@ def vamp_score_sym(
 
         if c00.shape[0] % symmetry_fold != 0:
             raise ValueError(
-                f"Number of features {c00.shape[0]} must"
-                + f"be divisible by symmetry_fold {symmetry_fold}."
+                f"Number of features {c00.shape[0]} must" + f"be divisible by symmetry_fold {symmetry_fold}."
             )
         subset_rank = c00.shape[0] // symmetry_fold
 
@@ -205,15 +195,9 @@ def vamp_score_sym(
         cov_0t_blocks = []
         cov_tt_blocks = []
         for i in range(symmetry_fold):
-            cov_00_blocks.append(
-                c00[:subset_rank, i * subset_rank : (i + 1) * subset_rank]
-            )
-            cov_0t_blocks.append(
-                c0t[:subset_rank, i * subset_rank : (i + 1) * subset_rank]
-            )
-            cov_tt_blocks.append(
-                ctt[:subset_rank, i * subset_rank : (i + 1) * subset_rank]
-            )
+            cov_00_blocks.append(c00[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
+            cov_0t_blocks.append(c0t[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
+            cov_tt_blocks.append(ctt[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
 
         #        cov_00 = covariances.cov_00[:subset_rank, :subset_rank]
         #        cov_0t = covariances.cov_0t[:subset_rank, :subset_rank]
@@ -237,10 +221,7 @@ def vamp_score_sym(
         v_t = v.t()
         s = torch.diag(s)
 
-        out = torch.trace(
-            2.0 * multi_dot([s, u_t, cov_0t, v])
-            - multi_dot([s, u_t, cov_00, u, s, v_t, cov_tt, v])
-        )
+        out = torch.trace(2.0 * multi_dot([s, u_t, cov_0t, v]) - multi_dot([s, u_t, cov_00, u, s, v_t, cov_tt, v]))
     assert out is not None
     return 1 + out
 
@@ -291,8 +272,7 @@ def koopman_matrix_sym(
 
     if c00.shape[0] % symmetry_fold != 0:
         raise ValueError(
-            f"Number of features {c00.shape[0]} must"
-            + f"be divisible by symmetry_fold {symmetry_fold}."
+            f"Number of features {c00.shape[0]} must" + f"be divisible by symmetry_fold {symmetry_fold}."
         )
     subset_rank = c00.shape[0] // symmetry_fold
 

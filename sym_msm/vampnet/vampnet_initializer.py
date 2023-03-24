@@ -37,6 +37,7 @@ from scipy.stats import rankdata
 from ..decomposition import SymTICA
 from .score import vamp_score_sym, vamp_score_rev
 
+
 class VAMPNETInitializer(MSMInitializer):
     prefix = "vampnet"
 
@@ -58,9 +59,7 @@ class VAMPNETInitializer(MSMInitializer):
             # self.dataset = MultimerTrajectoriesDataset.from_numpy(
             #    self.lag, self.multimer, self.feature_trajectories)
 
-            self.dataset = TrajectoriesDataset.from_numpy(
-                lagtime=self.lag, data=self.feature_trajectories
-            )
+            self.dataset = TrajectoriesDataset.from_numpy(lagtime=self.lag, data=self.feature_trajectories)
             if not self.symmetrize:
                 self.dataset_sym = MultimerTrajectoriesDataset.from_numpy(
                     self.lag, self.multimer, self.feature_trajectories
@@ -69,9 +68,10 @@ class VAMPNETInitializer(MSMInitializer):
         #                with open(self.filename + 'vampnet_init.pickle', 'wb') as f:
         #                    pickle.dump(self, f)
         else:
-            print('The VAMPNETInitializer cannot be loaded')
+            print("The VAMPNETInitializer cannot be loaded")
             self.updating = True
             self.start_analysis()
+
     #            self = pickle.load(open(self.filename + 'vampnet_init.pickle', 'rb'))
 
     @property
@@ -85,9 +85,7 @@ class VAMPNETInitializer(MSMInitializer):
 
     @property
     def state_list(self):
-        return [
-            f"{vampnet.n_states}_state_{vampnet.rep}_rep" for vampnet in self._vampnets
-        ]
+        return [f"{vampnet.n_states}_state_{vampnet.rep}_rep" for vampnet in self._vampnets]
 
     @property
     def vampnet_dict(self):
@@ -102,67 +100,38 @@ class VAMPNETInitializer(MSMInitializer):
         print("The activated VAMPNET # rep:", self.active_vampnet.rep)
 
         if not self.vampnet_dict[self.active_vampnet_name] or update:
-            state_probabilities = [
-                self.active_vampnet.transform(traj)
-                for traj in self.dataset.trajectories
-            ]
+            state_probabilities = [self.active_vampnet.transform(traj) for traj in self.dataset.trajectories]
             state_probabilities_concat = np.concatenate(state_probabilities)
             assignments = [stat_prob.argmax(1) for stat_prob in state_probabilities]
             assignments_concat = np.concatenate(assignments)
 
-            self._vampnet_dict[self.active_vampnet_name][
-                "state_probabilities"
-            ] = state_probabilities
-            self._vampnet_dict[self.active_vampnet_name][
-                "state_probabilities_concat"
-            ] = state_probabilities_concat
+            self._vampnet_dict[self.active_vampnet_name]["state_probabilities"] = state_probabilities
+            self._vampnet_dict[self.active_vampnet_name]["state_probabilities_concat"] = state_probabilities_concat
             self._vampnet_dict[self.active_vampnet_name]["assignments"] = assignments
-            self._vampnet_dict[self.active_vampnet_name][
-                "assignments_concat"
-            ] = assignments_concat
-        self.state_probabilities = self._vampnet_dict[self.active_vampnet_name][
-            "state_probabilities"
-        ]
+            self._vampnet_dict[self.active_vampnet_name]["assignments_concat"] = assignments_concat
+        self.state_probabilities = self._vampnet_dict[self.active_vampnet_name]["state_probabilities"]
         self.state_probabilities_concat = self._vampnet_dict[self.active_vampnet_name][
             "state_probabilities_concat"
         ]
         self.assignments = self._vampnet_dict[self.active_vampnet_name]["assignments"]
-        self.assignments_concat = self._vampnet_dict[self.active_vampnet_name][
-            "assignments_concat"
-        ]
+        self.assignments_concat = self._vampnet_dict[self.active_vampnet_name]["assignments_concat"]
 
     def get_tica_model(self):
-        print(
-            f"Start TICA with VAMPNET model {self.active_vampnet_name}, lagtime: {self.lag}"
-        )
-        self.tica = TICA(
-            lagtime=self.lag, observable_transform=self.active_vampnet.fetch_model()
-        )
+        print(f"Start TICA with VAMPNET model {self.active_vampnet_name}, lagtime: {self.lag}")
+        self.tica = TICA(lagtime=self.lag, observable_transform=self.active_vampnet.fetch_model())
         data_loader = DataLoader(self.dataset, batch_size=20000, shuffle=True)
         for batch_0, batch_t in tqdm(data_loader):
             n_feat_per_sub = batch_0.shape[1] // self.active_vampnet.multimer
 
-            batch_0 = torch.concat(
-                [
-                    torch.roll(batch_0, n_feat_per_sub * i, 1)
-                    for i in range(self.multimer)
-                ]
-            )
-            batch_t = torch.concat(
-                [
-                    torch.roll(batch_t, n_feat_per_sub * i, 1)
-                    for i in range(self.multimer)
-                ]
-            )
+            batch_0 = torch.concat([torch.roll(batch_0, n_feat_per_sub * i, 1) for i in range(self.multimer)])
+            batch_t = torch.concat([torch.roll(batch_t, n_feat_per_sub * i, 1) for i in range(self.multimer)])
 
             self.tica.partial_fit((batch_0.numpy(), batch_t.numpy()))
         self.tica_model = self.tica.fetch_model()
 
         self._vampnet_dict[self.active_vampnet_name]["tica_model"] = self.tica_model
 
-        self.tica_output = [
-            self.tica_model.transform(traj) for traj in self.dataset.trajectories
-        ]
+        self.tica_output = [self.tica_model.transform(traj) for traj in self.dataset.trajectories]
         self.tica_concatenated = np.concatenate(self.tica_output)
         print("TICA shape:", self.tica_concatenated.shape)
         self.transformer = self.tica
@@ -182,10 +151,7 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
         )
 
         if not self.vampnet_dict[self.active_vampnet_name] or update:
-            state_probabilities = [
-                self.active_vampnet.transform(traj)
-                for traj in self.dataset.trajectories
-            ]
+            state_probabilities = [self.active_vampnet.transform(traj) for traj in self.dataset.trajectories]
             state_probabilities_concat = np.concatenate(state_probabilities)
             assignments = [
                 stat_prob.reshape(
@@ -203,10 +169,7 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
                 cluster_degen_dtrajs.append(
                     np.sum(
                         sorted_sub_dtrajs
-                        * (
-                            self.active_vampnet.n_states
-                            ** np.arange(self.active_vampnet.multimer)
-                        ),
+                        * (self.active_vampnet.n_states ** np.arange(self.active_vampnet.multimer)),
                         axis=1,
                     )
                 )
@@ -217,64 +180,32 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
             cluster_rank_dtrajs = []
             curr_ind = 0
             for sub_dtrajs in assignments:
-                cluster_rank_dtrajs.append(
-                    cluster_rank_concat[curr_ind : curr_ind + sub_dtrajs.shape[0]]
-                )
+                cluster_rank_dtrajs.append(cluster_rank_concat[curr_ind : curr_ind + sub_dtrajs.shape[0]])
                 curr_ind += sub_dtrajs.shape[0]
 
-            self._vampnet_dict[self.active_vampnet_name][
-                "state_probabilities"
-            ] = state_probabilities
-            self._vampnet_dict[self.active_vampnet_name][
-                "state_probabilities_concat"
-            ] = state_probabilities_concat
+            self._vampnet_dict[self.active_vampnet_name]["state_probabilities"] = state_probabilities
+            self._vampnet_dict[self.active_vampnet_name]["state_probabilities_concat"] = state_probabilities_concat
             self._vampnet_dict[self.active_vampnet_name]["assignments"] = assignments
-            self._vampnet_dict[self.active_vampnet_name][
-                "assignments_concat"
-            ] = assignments_concat
-            self._vampnet_dict[self.active_vampnet_name][
-                "cluster_degen_dtrajs"
-            ] = cluster_degen_dtrajs
-            self._vampnet_dict[self.active_vampnet_name][
-                "cluster_degen_concat"
-            ] = cluster_degen_concat
-            self._vampnet_dict[self.active_vampnet_name][
-                "cluster_rank_dtrajs"
-            ] = cluster_rank_dtrajs
-            self._vampnet_dict[self.active_vampnet_name][
-                "cluster_rank_concat"
-            ] = cluster_rank_concat
-            self._vampnet_dict[self.active_vampnet_name][
-                "stat_rank_mapping"
-            ] = self.get_assignment_rank_mapping(
+            self._vampnet_dict[self.active_vampnet_name]["assignments_concat"] = assignments_concat
+            self._vampnet_dict[self.active_vampnet_name]["cluster_degen_dtrajs"] = cluster_degen_dtrajs
+            self._vampnet_dict[self.active_vampnet_name]["cluster_degen_concat"] = cluster_degen_concat
+            self._vampnet_dict[self.active_vampnet_name]["cluster_rank_dtrajs"] = cluster_rank_dtrajs
+            self._vampnet_dict[self.active_vampnet_name]["cluster_rank_concat"] = cluster_rank_concat
+            self._vampnet_dict[self.active_vampnet_name]["stat_rank_mapping"] = self.get_assignment_rank_mapping(
                 assignments_concat, cluster_rank_concat
             )
 
-        self.state_probabilities = self._vampnet_dict[self.active_vampnet_name][
-            "state_probabilities"
-        ]
+        self.state_probabilities = self._vampnet_dict[self.active_vampnet_name]["state_probabilities"]
         self.state_probabilities_concat = self._vampnet_dict[self.active_vampnet_name][
             "state_probabilities_concat"
         ]
         self.assignments = self._vampnet_dict[self.active_vampnet_name]["assignments"]
-        self.assignments_concat = self._vampnet_dict[self.active_vampnet_name][
-            "assignments_concat"
-        ]
-        self.cluster_degen_dtrajs = self._vampnet_dict[self.active_vampnet_name][
-            "cluster_degen_dtrajs"
-        ]
-        self.cluster_degen_concat = self._vampnet_dict[self.active_vampnet_name][
-            "cluster_degen_concat"
-        ]
-        self.cluster_rank_dtrajs = self._vampnet_dict[self.active_vampnet_name][
-            "cluster_rank_dtrajs"
-        ]
-        self.cluster_rank_concat = self._vampnet_dict[self.active_vampnet_name][
-            "cluster_rank_concat"
-        ]
-        self.stat_rank_mapping = self._vampnet_dict[self.active_vampnet_name][
-            "stat_rank_mapping"
-        ]
+        self.assignments_concat = self._vampnet_dict[self.active_vampnet_name]["assignments_concat"]
+        self.cluster_degen_dtrajs = self._vampnet_dict[self.active_vampnet_name]["cluster_degen_dtrajs"]
+        self.cluster_degen_concat = self._vampnet_dict[self.active_vampnet_name]["cluster_degen_concat"]
+        self.cluster_rank_dtrajs = self._vampnet_dict[self.active_vampnet_name]["cluster_rank_dtrajs"]
+        self.cluster_rank_concat = self._vampnet_dict[self.active_vampnet_name]["cluster_rank_concat"]
+        self.stat_rank_mapping = self._vampnet_dict[self.active_vampnet_name]["stat_rank_mapping"]
 
     @staticmethod
     def get_assignment_rank_mapping(assignment, cluster_rank):
@@ -288,31 +219,38 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
         self.state_df = self.dataframe[self.dataframe.traj_time >= start_time].reset_index(drop=True).copy()
         if tica_output is not None:
             plotly_tica_concatenated = np.concatenate(tica_output[::])
-            self.state_df['tic_1'] = plotly_tica_concatenated[:, 0]
-            self.state_df['tic_2'] = plotly_tica_concatenated[:, 1]
+            self.state_df["tic_1"] = plotly_tica_concatenated[:, 0]
+            self.state_df["tic_2"] = plotly_tica_concatenated[:, 1]
 
         for ind, vampnet in enumerate(self.vampnets):
             self.select_vampnet(ind)
             self.state_df = pd.concat(
                 [
-                self.state_df,
-                pd.DataFrame(self.cluster_rank_concat,
-                            columns=[f'n_states_{self.active_vampnet.n_states}_rep_{self.active_vampnet.rep}'])
+                    self.state_df,
+                    pd.DataFrame(
+                        self.cluster_rank_concat,
+                        columns=[f"n_states_{self.active_vampnet.n_states}_rep_{self.active_vampnet.rep}"],
+                    ),
                 ],
-                            axis=1)
+                axis=1,
+            )
             self.state_df = pd.concat(
                 [
-                self.state_df,
-                pd.DataFrame(self.assignments_concat,
-                                columns=[f'n_states_{self.active_vampnet.n_states}_sub_{subunit}_rep_{self.active_vampnet.rep}' for subunit in range(self.multimer)])
+                    self.state_df,
+                    pd.DataFrame(
+                        self.assignments_concat,
+                        columns=[
+                            f"n_states_{self.active_vampnet.n_states}_sub_{subunit}_rep_{self.active_vampnet.rep}"
+                            for subunit in range(self.multimer)
+                        ],
+                    ),
                 ],
-                                axis=1)
+                axis=1,
+            )
         self.select_vampnet(0)
 
     def get_tica_model(self):
-        print(
-            f"Start SymTICA with VAMPNET model {self.active_vampnet_name}, lagtime: {self.lag}"
-        )
+        print(f"Start SymTICA with VAMPNET model {self.active_vampnet_name}, lagtime: {self.lag}")
         self.tica = SymTICA(
             symmetry_fold=self.active_vampnet.multimer,
             lagtime=self.lag,
@@ -322,28 +260,15 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
         for batch_0, batch_t in tqdm(data_loader):
             n_feat_per_sub = batch_0.shape[1] // self.active_vampnet.multimer
 
-            batch_0 = torch.concat(
-                [
-                    torch.roll(batch_0, n_feat_per_sub * i, 1)
-                    for i in range(self.multimer)
-                ]
-            )
-            batch_t = torch.concat(
-                [
-                    torch.roll(batch_t, n_feat_per_sub * i, 1)
-                    for i in range(self.multimer)
-                ]
-            )
+            batch_0 = torch.concat([torch.roll(batch_0, n_feat_per_sub * i, 1) for i in range(self.multimer)])
+            batch_t = torch.concat([torch.roll(batch_t, n_feat_per_sub * i, 1) for i in range(self.multimer)])
 
             self.tica.partial_fit((batch_0.numpy(), batch_t.numpy()))
         self.tica_model = self.tica.fetch_model()
 
         self._vampnet_dict[self.active_vampnet_name]["tica_model"] = self.tica_model
 
-        self.tica_output = [
-            self.tica_model.transform(traj) for traj in self.dataset.trajectories
-        ]
+        self.tica_output = [self.tica_model.transform(traj) for traj in self.dataset.trajectories]
         self.tica_concatenated = np.concatenate(self.tica_output)
         print("TICA shape:", self.tica_concatenated.shape)
         self.transformer = self.tica
-

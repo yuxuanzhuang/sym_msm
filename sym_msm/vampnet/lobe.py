@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-        
+
+
 class MultimerNet(nn.Module):
     def __init__(self, data_shape, multimer, n_states):
         super().__init__()
@@ -34,8 +35,7 @@ class MultimerNet(nn.Module):
         n_feat_per_sub = int(self.data_shape / self.multimer)
         x_splits = x.reshape(batch_size, self.multimer, self.n_feat_per_sub)
         output = []
-        x_stack = torch.permute(x_splits, (1, 0, 2)).reshape(
-            batch_size * self.multimer, self.n_feat_per_sub)
+        x_stack = torch.permute(x_splits, (1, 0, 2)).reshape(batch_size * self.multimer, self.n_feat_per_sub)
         x_stack = self.batchnorm1d(x_stack)
         x_stack = self.fc1(x_stack)
         x_stack = self.elu1(x_stack)
@@ -49,16 +49,13 @@ class MultimerNet(nn.Module):
         x_stack = self.elu4(x_stack)
         x_stack = self.fc5(x_stack)
         x_stack = self.softmax(x_stack)
-        x_splits = x_stack.reshape(
-            self.multimer,
-            batch_size,
-            self.n_states).permute(
-            1,
-            0,
-            2).reshape(
-            batch_size,
-            self.n_states * self.multimer)
+        x_splits = (
+            x_stack.reshape(self.multimer, batch_size, self.n_states)
+            .permute(1, 0, 2)
+            .reshape(batch_size, self.n_states * self.multimer)
+        )
         return x_splits
+
 
 class MultimerNet_200(MultimerNet):
     def _construct_architecture(self):
@@ -91,9 +88,7 @@ class MultimerNet_200(MultimerNet):
         x_splits = x.reshape(batch_size, self.multimer, self.n_feat_per_sub)
         output = []
 
-        x_stack = torch.permute(x_splits, (1, 0, 2)).reshape(
-            batch_size * self.multimer, self.n_feat_per_sub
-        )
+        x_stack = torch.permute(x_splits, (1, 0, 2)).reshape(batch_size * self.multimer, self.n_feat_per_sub)
 
         x_stack = self.batchnorm1d(x_stack)
         x_stack = self.fc1(x_stack)
@@ -115,6 +110,7 @@ class MultimerNet_200(MultimerNet):
             .reshape(batch_size, self.n_states * self.multimer)
         )
         return x_splits
+
 
 class MultimerNet_400(MultimerNet):
     def _construct_architecture(self):
@@ -147,9 +143,7 @@ class MultimerNet_400(MultimerNet):
         x_splits = x.reshape(batch_size, self.multimer, self.n_feat_per_sub)
         output = []
 
-        x_stack = torch.permute(x_splits, (1, 0, 2)).reshape(
-            batch_size * self.multimer, self.n_feat_per_sub
-        )
+        x_stack = torch.permute(x_splits, (1, 0, 2)).reshape(batch_size * self.multimer, self.n_feat_per_sub)
 
         x_stack = self.batchnorm1d(x_stack)
         x_stack = self.fc1(x_stack)

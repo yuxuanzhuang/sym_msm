@@ -16,9 +16,7 @@ class MultimerTrajectoriesDataset(TrajectoriesDataset):
     @staticmethod
     def from_numpy(lagtime, multimer, data: List[np.ndarray]):
         assert isinstance(data, list)
-        assert len(data) > 0 and all(
-            data[0].shape[1:] == x.shape[1:] for x in data
-        ), "Shape mismatch!"
+        assert len(data) > 0 and all(data[0].shape[1:] == x.shape[1:] for x in data), "Shape mismatch!"
 
         data_new = []
         total_shape = data[0].shape[1]
@@ -27,15 +25,13 @@ class MultimerTrajectoriesDataset(TrajectoriesDataset):
         for i in range(multimer):
             data_new.extend(
                 [
-                    np.roll(
-                        traj.reshape(traj.shape[0], multimer, per_shape), i, axis=1
-                    ).reshape(traj.shape[0], total_shape)
+                    np.roll(traj.reshape(traj.shape[0], multimer, per_shape), i, axis=1).reshape(
+                        traj.shape[0], total_shape
+                    )
                     for traj in data
                 ]
             )
-        return MultimerTrajectoriesDataset(
-            multimer, [TrajectoryDataset(lagtime, traj) for traj in data_new]
-        )
+        return MultimerTrajectoriesDataset(multimer, [TrajectoryDataset(lagtime, traj) for traj in data_new])
 
 
 def get_symmetrized_data(data: List[np.ndarray], multimer: int) -> np.ndarray:
@@ -50,9 +46,9 @@ def get_symmetrized_data(data: List[np.ndarray], multimer: int) -> np.ndarray:
     for i in range(multimer):
         data_new.extend(
             [
-                np.roll(
-                    traj.reshape(traj.shape[0], multimer, per_shape), i, axis=1
-                ).reshape(traj.shape[0], total_shape)
+                np.roll(traj.reshape(traj.shape[0], multimer, per_shape), i, axis=1).reshape(
+                    traj.shape[0], total_shape
+                )
                 for traj in data
             ]
         )

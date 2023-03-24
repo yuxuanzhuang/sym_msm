@@ -23,9 +23,7 @@ def sym_vampnet_loss(
 ):
     r"""Loss function that can be used to train SymVAMPNets. It evaluates as :math:`-\mathrm{score}`. The score
     is implemented in :meth:`score`."""
-    return -1.0 * sym_vamp_score(
-        data, data_lagged, method=method, epsilon=epsilon, mode=mode
-    )
+    return -1.0 * sym_vamp_score(data, data_lagged, method=method, epsilon=epsilon, mode=mode)
 
 
 def sym_vamp_score(
@@ -56,12 +54,9 @@ def sym_vamp_score(
         The score. It contains a contribution of :math:`+1` for the constant singular function since the
         internally estimated Koopman operator is defined on a decorrelated basis set.
     """
-    assert (
-        method in valid_score_methods
-    ), f"Invalid method '{method}', supported are {valid_score_methods}"
+    assert method in valid_score_methods, f"Invalid method '{method}', supported are {valid_score_methods}"
     assert data.shape == data_lagged.shape, (
-        f"Data and data_lagged must be of same shape but were {data.shape} "
-        f"and {data_lagged.shape}."
+        f"Data and data_lagged must be of same shape but were {data.shape} " f"and {data_lagged.shape}."
     )
     out = None
     if method == "VAMP1":
@@ -90,10 +85,7 @@ def sym_vamp_score(
         v_t = v.t()
         s = torch.diag(s)
 
-        out = torch.trace(
-            2.0 * multi_dot([s, u_t, c0t, v])
-            - multi_dot([s, u_t, c00, u, s, v_t, ctt, v])
-        )
+        out = torch.trace(2.0 * multi_dot([s, u_t, c0t, v]) - multi_dot([s, u_t, c00, u, s, v_t, ctt, v]))
     assert out is not None
     return 1 + out
 
@@ -163,13 +155,9 @@ class VAMPNET_Sym(VAMPNet):
         batch_0, batch_t = data[0], data[1]
 
         if isinstance(data[0], np.ndarray):
-            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(device=self.device)
         if isinstance(data[1], np.ndarray):
-            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(device=self.device)
 
         self.optimizer.zero_grad()
         x_0 = self.lobe(batch_0)
@@ -209,12 +197,8 @@ class VAMPNET_Sym(VAMPNet):
             val = self.lobe(validation_data[0])
             val_t = self.lobe_timelagged(validation_data[1])
             # augmenting validation set by permutation
-            val_aug = torch.concat(
-                [torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)]
-            )
-            val_t_aug = torch.concat(
-                [torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)]
-            )
+            val_aug = torch.concat([torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)])
+            val_t_aug = torch.concat([torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)])
             score_value = sym_vamp_score(
                 val_aug,
                 val_t_aug,
@@ -270,9 +254,7 @@ class VAMPNET_Sym(VAMPNet):
 
         # and train
         with disable_TF32():
-            for _ in progress(
-                range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False
-            ):
+            for _ in progress(range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False):
                 for batch_0, batch_t in data_loader:
                     self.partial_fit(
                         (
@@ -297,12 +279,8 @@ class VAMPNET_Sym(VAMPNet):
                         mean_score = torch.mean(torch.stack(scores))
                         self._validation_scores.append((self._step, mean_score.item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"valid": -mean_score.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"valid": mean_score.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"valid": -mean_score.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"valid": mean_score.item()}, self._step)
 
                         if validation_score_callback is not None:
                             validation_score_callback(self._step, mean_score)
@@ -394,13 +372,9 @@ class VAMPNet_Multimer_Sym(VAMPNet_Multimer):
         batch_0, batch_t = data[0], data[1]
 
         if isinstance(data[0], np.ndarray):
-            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(device=self.device)
         if isinstance(data[1], np.ndarray):
-            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(device=self.device)
 
         self.optimizer.zero_grad()
         x_0 = self.lobe(batch_0)
@@ -440,12 +414,8 @@ class VAMPNet_Multimer_Sym(VAMPNet_Multimer):
             val = self.lobe(validation_data[0])
             val_t = self.lobe_timelagged(validation_data[1])
             # augmenting validation set by permutation
-            val_aug = torch.concat(
-                [torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)]
-            )
-            val_t_aug = torch.concat(
-                [torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)]
-            )
+            val_aug = torch.concat([torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)])
+            val_t_aug = torch.concat([torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)])
             score_value = sym_vamp_score(
                 val_aug,
                 val_t_aug,
@@ -501,9 +471,7 @@ class VAMPNet_Multimer_Sym(VAMPNet_Multimer):
 
         # and train
         with disable_TF32():
-            for _ in progress(
-                range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False
-            ):
+            for _ in progress(range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False):
                 for batch_0, batch_t in data_loader:
                     self.partial_fit(
                         (
@@ -528,12 +496,8 @@ class VAMPNet_Multimer_Sym(VAMPNet_Multimer):
                         mean_score = torch.mean(torch.stack(scores))
                         self._validation_scores.append((self._step, mean_score.item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"valid": -mean_score.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"valid": mean_score.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"valid": -mean_score.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"valid": mean_score.item()}, self._step)
 
                         if validation_score_callback is not None:
                             validation_score_callback(self._step, mean_score)
@@ -625,24 +589,16 @@ class VAMPNet_Multimer_Sym_NOSYM(VAMPNet_Multimer):
         batch_0, batch_t = data[0], data[1]
 
         if isinstance(data[0], np.ndarray):
-            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_0 = torch.from_numpy(data[0].astype(self.dtype)).to(device=self.device)
         if isinstance(data[1], np.ndarray):
-            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(
-                device=self.device
-            )
+            batch_t = torch.from_numpy(data[1].astype(self.dtype)).to(device=self.device)
 
         self.optimizer.zero_grad()
         x_0 = self.lobe(batch_0)
         x_t = self.lobe_timelagged(batch_t)
 
-        x_0_aug = torch.concat(
-            [torch.roll(x_0, self.n_states * i, 1) for i in range(self.multimer)]
-        )
-        x_t_aug = torch.concat(
-            [torch.roll(x_t, self.n_states * i, 1) for i in range(self.multimer)]
-        )
+        x_0_aug = torch.concat([torch.roll(x_0, self.n_states * i, 1) for i in range(self.multimer)])
+        x_t_aug = torch.concat([torch.roll(x_t, self.n_states * i, 1) for i in range(self.multimer)])
         loss_value = -sym_vamp_score_nosym(
             x_0_aug,
             x_t_aug,
@@ -673,12 +629,8 @@ class VAMPNet_Multimer_Sym_NOSYM(VAMPNet_Multimer):
             val = self.lobe(validation_data[0])
             val_t = self.lobe_timelagged(validation_data[1])
             # augmenting validation set by permutation
-            val_aug = torch.concat(
-                [torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)]
-            )
-            val_t_aug = torch.concat(
-                [torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)]
-            )
+            val_aug = torch.concat([torch.roll(val, self.n_states * i, 1) for i in range(self.multimer)])
+            val_t_aug = torch.concat([torch.roll(val_t, self.n_states * i, 1) for i in range(self.multimer)])
             score_value = sym_vamp_score_nosym(
                 val_aug,
                 val_t_aug,
@@ -735,9 +687,7 @@ class VAMPNet_Multimer_Sym_NOSYM(VAMPNet_Multimer):
 
         # and train
         with disable_TF32():
-            for _ in progress(
-                range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False
-            ):
+            for _ in progress(range(n_epochs), desc="VAMPNet epoch", total=n_epochs, leave=False):
                 for batch_0, batch_t in data_loader:
                     self.partial_fit(
                         (
@@ -762,12 +712,8 @@ class VAMPNet_Multimer_Sym_NOSYM(VAMPNet_Multimer):
                         mean_score = torch.mean(torch.stack(scores))
                         self._validation_scores.append((self._step, mean_score.item()))
                         if tb_writer is not None:
-                            tb_writer.add_scalars(
-                                "Loss", {"valid": -mean_score.item()}, self._step
-                            )
-                            tb_writer.add_scalars(
-                                "VAMPE", {"valid": mean_score.item()}, self._step
-                            )
+                            tb_writer.add_scalars("Loss", {"valid": -mean_score.item()}, self._step)
+                            tb_writer.add_scalars("VAMPE", {"valid": mean_score.item()}, self._step)
 
                         if validation_score_callback is not None:
                             validation_score_callback(self._step, mean_score)
@@ -865,23 +811,16 @@ def sym_vamp_score_nosym(
         The score. It contains a contribution of :math:`+1` for the constant singular function since the
         internally estimated Koopman operator is defined on a decorrelated basis set.
     """
-    assert (
-        method in valid_score_methods
-    ), f"Invalid method '{method}', supported are {valid_score_methods}"
+    assert method in valid_score_methods, f"Invalid method '{method}', supported are {valid_score_methods}"
     assert data.shape == data_lagged.shape, (
-        f"Data and data_lagged must be of same shape but were {data.shape} "
-        f"and {data_lagged.shape}."
+        f"Data and data_lagged must be of same shape but were {data.shape} " f"and {data_lagged.shape}."
     )
     out = None
     if method == "VAMP1":
-        koopman = sym_koopman_matrix_nosym(
-            data, data_lagged, symmetry_fold, epsilon=epsilon, mode=mode
-        )
+        koopman = sym_koopman_matrix_nosym(data, data_lagged, symmetry_fold, epsilon=epsilon, mode=mode)
         out = torch.norm(koopman, p="nuc")
     elif method == "VAMP2":
-        koopman = sym_koopman_matrix_nosym(
-            data, data_lagged, symmetry_fold, epsilon=epsilon, mode=mode
-        )
+        koopman = sym_koopman_matrix_nosym(data, data_lagged, symmetry_fold, epsilon=epsilon, mode=mode)
         out = torch.pow(torch.norm(koopman, p="fro"), 2)
     elif method == "VAMPE":
         c00 = data.T @ data + data_lagged.T @ data_lagged
@@ -890,8 +829,7 @@ def sym_vamp_score_nosym(
 
         if c00.shape[0] % symmetry_fold != 0:
             raise ValueError(
-                f"Number of features {c00.shape[0]} must"
-                + f"be divisible by symmetry_fold {symmetry_fold}."
+                f"Number of features {c00.shape[0]} must" + f"be divisible by symmetry_fold {symmetry_fold}."
             )
         subset_rank = c00.shape[0] // symmetry_fold
 
@@ -914,10 +852,7 @@ def sym_vamp_score_nosym(
         v_t = v.t()
         s = torch.diag(s)
 
-        out = torch.trace(
-            2.0 * multi_dot([s, u_t, c0t, v])
-            - multi_dot([s, u_t, c00, u, s, v_t, ctt, v])
-        )
+        out = torch.trace(2.0 * multi_dot([s, u_t, c0t, v]) - multi_dot([s, u_t, c00, u, s, v_t, ctt, v]))
     assert out is not None
     return 1 + out
 
@@ -962,8 +897,7 @@ def sym_koopman_matrix_nosym(
 
     if c00.shape[0] % symmetry_fold != 0:
         raise ValueError(
-            f"Number of features {c00.shape[0]} must"
-            + f"be divisible by symmetry_fold {symmetry_fold}."
+            f"Number of features {c00.shape[0]} must" + f"be divisible by symmetry_fold {symmetry_fold}."
         )
     subset_rank = c00.shape[0] // symmetry_fold
 

@@ -18,7 +18,6 @@ from .lobe import (
     MultimerNet,
     MultimerNet_200,
     MultimerNet_400,
-
 )
 
 from .vampnet_rev import VAMPNet_Multimer_REV

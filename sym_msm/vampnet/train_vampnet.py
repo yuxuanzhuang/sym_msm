@@ -1,10 +1,12 @@
 import warnings
+
 warnings.simplefilter(action="ignore", category=FutureWarning)
 import logging
+
 logging.basicConfig(filename="logs.log", level=logging.INFO)
 from ENPMDA import MDDataFrame
 import itertools
-from sym_msm.msm.msm import *
+from sym_msm.msm import *
 from sym_msm.vampnet import (
     VAMPNETInitializer_Multimer,
     VAMPNet_Multimer_SYM_REV,
@@ -18,10 +20,12 @@ from copy import deepcopy
 from tqdm.notebook import tqdm  # progress bar
 from torch.utils.data import DataLoader
 import argparse
+import os
+import pickle
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
-    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True  # type: ignore
 else:
     device = torch.device("cpu")
 torch.set_num_threads(32)
@@ -30,17 +34,15 @@ print(f"Using device {device}")
 
 ## Train Vampnet
 
-resids_exclusion = (
-    list(range(382, 397))
-    + list(range(298, 364))
-    + list(range(1, 25))
-    + list(range(60, 75))
-)
+resids_exclusion = list(range(382, 397)) + list(range(298, 372)) + list(range(1, 25)) + list(range(60, 75))
+
 
 def start_training(
     dataframe_name,
     lobe_class,
     resids_exclusion=resids_exclusion,
+    system_exclusion=[],
+    multimer=5,
     prefix="a7_apos_nosym_rev",
     min_state=2,
     max_state=5,
@@ -59,9 +61,9 @@ def start_training(
     msm_obj = VAMPNETInitializer_Multimer(
         md_dataframe=md_dataframe,
         lag=lag,
-        multimer=5,
+        multimer=multimer,
         start=start,
-        system_exclusion=[],
+        system_exclusion=system_exclusion,
         updating=updating,
         symmetrize=False,
         in_memory=True,
@@ -89,18 +91,14 @@ def start_training(
     msm_obj.start_analysis()
     dataset = msm_obj.dataset
     n_val = int(len(dataset) * 0.1)
-    train_data, val_data = torch.utils.data.random_split(
-        dataset, [len(dataset) - n_val, n_val]
-    )
+    train_data, val_data = torch.utils.data.random_split(dataset, [len(dataset) - n_val, n_val])  # type: ignore
     loader_train = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     loader_val = DataLoader(val_data, batch_size=len(val_data), shuffle=False)
 
     pentamer_lobes = []
     multimer_class = getattr(sys.modules[__name__], lobe_class)
     for n_states in range(min_state, max_state + 1):
-        pentamer_nstate_lobe = multimer_class(
-            data_shape=total_nfeat, multimer=5, n_states=n_states
-        )
+        pentamer_nstate_lobe = multimer_class(data_shape=total_nfeat, multimer=5, n_states=n_states)
         pentamer_nstate_lobe = torch.nn.DataParallel(pentamer_nstate_lobe)
         pentamer_lobes.append(pentamer_nstate_lobe)
 
@@ -116,7 +114,7 @@ def start_training(
             lobe=deepcopy(pentamer_lobe).to(device=device),
             score_method="VAMPE",
             learning_rate=learning_rate,
-            dtype=np.float64,
+            dtype=np.float64,  # type: ignore
             device=device,
         )
         for pentamer_lobe, rep in itertools.product(pentamer_lobes, range(n_rep))
@@ -151,9 +149,9 @@ def start_training(
         os.makedirs(msm_obj.filename + class_name, exist_ok=True)
 
         vampnet.device = torch.device("cpu")
-        vampnet._lobe = vampnet._lobe.module.to('cpu')
+        vampnet._lobe = vampnet._lobe.module.to("cpu")
         vampnet._lobe.eval()
-        vampnet._lobe_timelagged = vampnet._lobe_timelagged.module.to('cpu')
+        vampnet._lobe_timelagged = vampnet._lobe_timelagged.module.to("cpu")
         vampnet._lobe_timelagged.eval()
         vampnet.save(folder=msm_obj.filename, n_epoch=n_epochs, rep=rep)
 
@@ -191,36 +189,27 @@ def main():
         help="resids to exclude from the dataset",
     )
     parser.add_argument(
+        "--system_exclusion",
+        type=list,
+        default=[],
+        help="systems to exclude from the dataset",
+    )
+    parser.add_argument("--multimer", type=int, default=5, help="number of monomers in the multimer")
+    parser.add_argument(
         "--prefix",
         type=str,
         default="a7_apos_nosym_rev",
         help="prefix for the output files",
     )
-    parser.add_argument(
-        "--min_state", type=int, default=2, help="minimum number of states"
-    )
-    parser.add_argument(
-        "--max_state", type=int, default=5, help="maximum number of states"
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=6000, help="batch size for training"
-    )
-    parser.add_argument(
-        "--updating", type=bool, default=True, help="whether to update the model"
-    )
-    parser.add_argument(
-        "--overwrite", type=bool, default=True, help="whether to overwrite existing model"
-    )
+    parser.add_argument("--min_state", type=int, default=2, help="minimum number of states")
+    parser.add_argument("--max_state", type=int, default=5, help="maximum number of states")
+    parser.add_argument("--batch_size", type=int, default=6000, help="batch size for training")
+    parser.add_argument("--updating", type=bool, default=True, help="whether to update the model")
+    parser.add_argument("--overwrite", type=bool, default=True, help="whether to overwrite existing model")
     parser.add_argument("--lag", type=int, default=50, help="lag time for the VAMPNet")
-    parser.add_argument(
-        "--start", type=int, default=100, help="start epoch for the VAMPNet"
-    )
-    parser.add_argument(
-        "--n_epochs", type=int, default=300, help="number of epochs for the VAMPNet"
-    )
-    parser.add_argument(
-        "--n_rep", type=int, default=10, help="number of repetitions for the VAMPNet"
-    )
+    parser.add_argument("--start", type=int, default=100, help="start epoch for the VAMPNet")
+    parser.add_argument("--n_epochs", type=int, default=300, help="number of epochs for the VAMPNet")
+    parser.add_argument("--n_rep", type=int, default=10, help="number of repetitions for the VAMPNet")
     parser.add_argument(
         "--learning_rate",
         type=float,
@@ -243,8 +232,7 @@ def main():
     # parse the arguments
     args = parser.parse_args()
 
-    for arg in args:
-        print(arg)
+    print(args)
     start_training(**vars(args))
 
 

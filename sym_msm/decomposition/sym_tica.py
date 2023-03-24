@@ -65,9 +65,7 @@ class SymVAMP(VAMP):
     )
 
     @staticmethod
-    def _decomposition(
-        covariances, epsilon, scaling, dim, var_cutoff, symmetry_fold
-    ) -> _DiagonalizationResults:
+    def _decomposition(covariances, epsilon, scaling, dim, var_cutoff, symmetry_fold) -> _DiagonalizationResults:
         """Performs SVD on covariance matrices and save left, right singular vectors and values in the model."""
         if covariances.cov_00.shape[0] % symmetry_fold != 0:
             raise ValueError(
@@ -80,21 +78,9 @@ class SymVAMP(VAMP):
         cov_0t_blocks = []
         cov_tt_blocks = []
         for i in range(symmetry_fold):
-            cov_00_blocks.append(
-                covariances.cov_00[
-                    :subset_rank, i * subset_rank : (i + 1) * subset_rank
-                ]
-            )
-            cov_0t_blocks.append(
-                covariances.cov_0t[
-                    :subset_rank, i * subset_rank : (i + 1) * subset_rank
-                ]
-            )
-            cov_tt_blocks.append(
-                covariances.cov_tt[
-                    :subset_rank, i * subset_rank : (i + 1) * subset_rank
-                ]
-            )
+            cov_00_blocks.append(covariances.cov_00[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
+            cov_0t_blocks.append(covariances.cov_0t[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
+            cov_tt_blocks.append(covariances.cov_tt[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
 
         #        cov_00 = covariances.cov_00[:subset_rank, :subset_rank]
         #        cov_0t = covariances.cov_0t[:subset_rank, :subset_rank]
@@ -123,18 +109,14 @@ class SymVAMP(VAMP):
 
         singular_values = s
 
-        m = CovarianceKoopmanModel.effective_output_dimension(
-            rank0, rankt, dim, var_cutoff, singular_values
-        )
+        m = CovarianceKoopmanModel.effective_output_dimension(rank0, rankt, dim, var_cutoff, singular_values)
 
         U = np.dot(L0, A[:, :m])
         V = np.dot(Lt, BT[:m, :].T)
 
         # scale vectors
         if scaling is not None and scaling in ("km", "kinetic_map"):
-            U *= s[
-                np.newaxis, 0:m
-            ]  # scaled left singular functions induce a kinetic map
+            U *= s[np.newaxis, 0:m]  # scaled left singular functions induce a kinetic map
             V *= s[
                 np.newaxis, 0:m
             ]  # scaled right singular functions induce a kinetic map wrt. backward propagator
@@ -253,21 +235,9 @@ class SymTICA(TICA, SymVAMP):
         cov_0t_blocks = []
         cov_tt_blocks = []
         for i in range(symmetry_fold):
-            cov_00_blocks.append(
-                covariances.cov_00[
-                    :subset_rank, i * subset_rank : (i + 1) * subset_rank
-                ]
-            )
-            cov_0t_blocks.append(
-                covariances.cov_0t[
-                    :subset_rank, i * subset_rank : (i + 1) * subset_rank
-                ]
-            )
-            cov_tt_blocks.append(
-                covariances.cov_tt[
-                    :subset_rank, i * subset_rank : (i + 1) * subset_rank
-                ]
-            )
+            cov_00_blocks.append(covariances.cov_00[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
+            cov_0t_blocks.append(covariances.cov_0t[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
+            cov_tt_blocks.append(covariances.cov_tt[:subset_rank, i * subset_rank : (i + 1) * subset_rank])
 
         #        cov_00 = covariances.cov_00[:subset_rank, :subset_rank]
         #        cov_0t = covariances.cov_0t[:subset_rank, :subset_rank]
@@ -307,9 +277,7 @@ class SymTICA(TICA, SymVAMP):
             timescales = 1.0 - lagtime / np.log(np.abs(eigenvalues))
             # dampen timescales smaller than the lag time, as in section 2.5 of ref. [5]
             regularized_timescales = (
-                0.5
-                * timescales
-                * np.maximum(np.tanh(np.pi * ((timescales - lagtime) / lagtime) + 1), 0)
+                0.5 * timescales * np.maximum(np.tanh(np.pi * ((timescales - lagtime) / lagtime) + 1), 0)
             )
 
             eigenvectors *= np.sqrt(regularized_timescales / 2)
@@ -427,50 +395,34 @@ class SymCovarianceKoopmanModel(CovarianceKoopmanModel, TransferOperatorModel):
         self.symmetry_fold = symmetrty_fold
         self._whitening_instantaneous = SymWhiteningTransform(
             instantaneous_coefficients,
-            cov.mean_0[: instantaneous_coefficients.shape[0]]
-            if cov.data_mean_removed
-            else None,
+            cov.mean_0[: instantaneous_coefficients.shape[0]] if cov.data_mean_removed else None,
         )
         self._whitening_timelagged = SymWhiteningTransform(
             timelagged_coefficients,
-            cov.mean_t[: timelagged_coefficients.shape[0]]
-            if cov.data_mean_removed
-            else None,
+            cov.mean_t[: timelagged_coefficients.shape[0]] if cov.data_mean_removed else None,
         )
 
         self._whitening_instantaneous_full = SymWhiteningTransform(
             instantaneous_coefficients_full,
-            cov_full.mean_0[: instantaneous_coefficients.shape[0]]
-            if cov.data_mean_removed
-            else None,
+            cov_full.mean_0[: instantaneous_coefficients.shape[0]] if cov.data_mean_removed else None,
         )
         self._whitening_timelagged_full = SymWhiteningTransform(
             timelagged_coefficients_full,
-            cov_full.mean_t[: timelagged_coefficients_full.shape[0]]
-            if cov.data_mean_removed
-            else None,
+            cov_full.mean_t[: timelagged_coefficients_full.shape[0]] if cov.data_mean_removed else None,
         )
         TransferOperatorModel.__init__(
             self,
             np.diag(singular_values),
-            Concatenation_Multimer(
-                self._whitening_instantaneous, instantaneous_obs, self.symmetry_fold
-            ),
-            Concatenation_Multimer(
-                self._whitening_timelagged, timelagged_obs, self.symmetry_fold
-            ),
+            Concatenation_Multimer(self._whitening_instantaneous, instantaneous_obs, self.symmetry_fold),
+            Concatenation_Multimer(self._whitening_timelagged, timelagged_obs, self.symmetry_fold),
         )
         self._whitening_instantaneous_sub = SymWhiteningTransform_Multimer(
             instantaneous_coefficients,
-            cov.mean_0[: instantaneous_coefficients.shape[0]]
-            if cov.data_mean_removed
-            else None,
+            cov.mean_0[: instantaneous_coefficients.shape[0]] if cov.data_mean_removed else None,
         )
         self._whitening_timelagged_sub = SymWhiteningTransform_Multimer(
             timelagged_coefficients,
-            cov.mean_t[: timelagged_coefficients.shape[0]]
-            if cov.data_mean_removed
-            else None,
+            cov.mean_t[: timelagged_coefficients.shape[0]] if cov.data_mean_removed else None,
         )
 
         self.instantaneous_obs_sub = Concatenation_Multimer(
@@ -502,9 +454,7 @@ class SymCovarianceKoopmanModel(CovarianceKoopmanModel, TransferOperatorModel):
 
     def transform_subunit(self, data: np.ndarray, **kw):
         #        data = data.reshape(data.shape[0], self.symmetry_fold, -1)
-        return self.instantaneous_obs_sub(data).reshape(
-            data.shape[0], self.symmetry_fold, -1
-        )
+        return self.instantaneous_obs_sub(data).reshape(data.shape[0], self.symmetry_fold, -1)
 
 
 class Concatenation_Multimer(Concatenation):
@@ -534,7 +484,8 @@ class Concatenation_Multimer(Concatenation):
         result = result.reshape(result.shape[0], self.symmetry_fold, -1)
         return self.obs1(result)
 
-#TODO: rewrite covaraince class to be able to handle multimer data
+
+# TODO: rewrite covaraince class to be able to handle multimer data
 class SymVAMP_NOAUG(SymVAMP):
     r"""Variational approach for Markov processes (VAMP) with a symmetric observable transform."""
 
@@ -574,9 +525,7 @@ class SymVAMP_NOAUG(SymVAMP):
     )
 
     @staticmethod
-    def _decomposition(
-        covariances, epsilon, scaling, dim, var_cutoff, symmetry_fold
-    ) -> _DiagonalizationResults:
+    def _decomposition(covariances, epsilon, scaling, dim, var_cutoff, symmetry_fold) -> _DiagonalizationResults:
         """Performs SVD on covariance matrices and save left, right singular vectors and values in the model."""
         cov_00 = covariances.cov_00
         cov_0t = covariances.cov_0t
@@ -602,18 +551,14 @@ class SymVAMP_NOAUG(SymVAMP):
 
         singular_values = s
 
-        m = CovarianceKoopmanModel.effective_output_dimension(
-            rank0, rankt, dim, var_cutoff, singular_values
-        )
+        m = CovarianceKoopmanModel.effective_output_dimension(rank0, rankt, dim, var_cutoff, singular_values)
 
         U = np.dot(L0, A[:, :m])
         V = np.dot(Lt, BT[:m, :].T)
 
         # scale vectors
         if scaling is not None and scaling in ("km", "kinetic_map"):
-            U *= s[
-                np.newaxis, 0:m
-            ]  # scaled left singular functions induce a kinetic map
+            U *= s[np.newaxis, 0:m]  # scaled left singular functions induce a kinetic map
             V *= s[
                 np.newaxis, 0:m
             ]  # scaled right singular functions induce a kinetic map wrt. backward propagator
@@ -645,12 +590,8 @@ class SymVAMP_NOAUG(SymVAMP):
         """
         if self._covariance_estimator is None:
             self._covariance_estimator = self.covariance_estimator(lagtime=self.lagtime)
-        x, y = to_multimer_dataset(
-            data, symmetry_fold=self.symmetry_fold, lagtime=self.lagtime
-        )[:]
-        self._covariance_estimator.partial_fit(
-            (self.observable_transform(x), self.observable_transform(y))
-        )
+        x, y = to_multimer_dataset(data, symmetry_fold=self.symmetry_fold, lagtime=self.lagtime)[:]
+        self._covariance_estimator.partial_fit((self.observable_transform(x), self.observable_transform(y)))
         return self
 
     def fit_from_timeseries(self, data, weights=None):
@@ -669,9 +610,7 @@ class SymVAMP_NOAUG(SymVAMP):
         self : VAMP
             Reference to self.
         """
-        datasets = to_multimer_datasets(
-            data, symmetry_fold=self.symmetry_fold, lagtime=self.lagtime
-        )
+        datasets = to_multimer_datasets(data, symmetry_fold=self.symmetry_fold, lagtime=self.lagtime)
         self._covariance_estimator = self.covariance_estimator(lagtime=self.lagtime)
         self.datasets = datasets
         for dataset in datasets:
@@ -679,9 +618,7 @@ class SymVAMP_NOAUG(SymVAMP):
             x = dataset.data
             y = dataset.data_lagged
             transformed = (self.observable_transform(x), self.observable_transform(y))
-            self._covariance_estimator = self._covariance_estimator.partial_fit(
-                transformed, weights=weights
-            )
+            self._covariance_estimator = self._covariance_estimator.partial_fit(transformed, weights=weights)
         covariances = self._covariance_estimator.fetch_model()
         return self.fit_from_covariances(covariances)
 
@@ -703,7 +640,7 @@ class SymVAMP_NOAUG(SymVAMP):
         covariances = self._to_covariance_model(covariances)
         self._model = self._decompose(covariances)
         return self
-    
+
     def _decompose(self, covariances: CovarianceModel):
         decomposition = self._decomposition(
             covariances,
@@ -732,7 +669,6 @@ class SymVAMP_NOAUG(SymVAMP):
             instantaneous_obs=self.observable_transform,
             timelagged_obs=self.observable_transform,
         )
-    
 
 
 class SymTICA_NOAUG(SymVAMP_NOAUG, TICA):
@@ -772,9 +708,7 @@ def to_multimer_datasets(
 
     if isinstance(data, tuple):
         if len(data) != 2:
-            raise ValueError(
-                f"If data is provided as tuple the length must be 2 but was {len(data)}."
-            )
+            raise ValueError(f"If data is provided as tuple the length must be 2 but was {len(data)}.")
 
         datasets = []
         for x, y in zip(
@@ -786,9 +720,7 @@ def to_multimer_datasets(
 
     if isinstance(data, np.ndarray):
         if lagtime is None:
-            raise ValueError(
-                "In case data is a single trajectory the lagtime must be given."
-            )
+            raise ValueError("In case data is a single trajectory the lagtime must be given.")
         return TrajectoriesDataset.from_numpy(
             lagtime, [data_sub for data_sub in np.split(data, symmetry_fold, axis=1)]
         )
@@ -797,9 +729,7 @@ def to_multimer_datasets(
         data = ensure_timeseries_data(data)
         traj_list = []
         for traj in data:
-            traj_list.extend(
-                [traj_sub for traj_sub in np.split(traj, symmetry_fold, axis=1)]
-            )
+            traj_list.extend([traj_sub for traj_sub in np.split(traj, symmetry_fold, axis=1)])
         return TrajectoriesDataset.from_numpy(lagtime, traj_list)
 
     if isinstance(data, TrajectoryDataset):

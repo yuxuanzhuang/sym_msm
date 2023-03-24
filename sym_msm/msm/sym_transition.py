@@ -48,12 +48,8 @@ class SymTransitionCountEstimator(TransitionCountEstimator):
         large.
     """
 
-    def __init__(
-        self, lagtime: int, multimer: int, count_mode: str, n_states=None, sparse=False
-    ):
-        super().__init__(
-            lagtime=lagtime, count_mode=count_mode, n_states=n_states, sparse=sparse
-        )
+    def __init__(self, lagtime: int, multimer: int, count_mode: str, n_states=None, sparse=False):
+        super().__init__(lagtime=lagtime, count_mode=count_mode, n_states=n_states, sparse=sparse)
 
         self.multimer = multimer
 
@@ -83,9 +79,7 @@ class SymTransitionCountEstimator(TransitionCountEstimator):
             n_jobs=kw.pop("n_jobs", None),
         )
         if self.n_states is not None and self.n_states > count_matrix.shape[0]:
-            histogram = np.pad(
-                histogram, pad_width=[(0, self.n_states - count_matrix.shape[0])]
-            )
+            histogram = np.pad(histogram, pad_width=[(0, self.n_states - count_matrix.shape[0])])
             if issparse(count_matrix):
                 count_matrix = scipy.sparse.csr_matrix(
                     (count_matrix.data, count_matrix.indices, count_matrix.indptr),
@@ -151,15 +145,11 @@ class SymTransitionCountEstimator(TransitionCountEstimator):
         >>> np.testing.assert_equal(count_matrix, np.array([[2, 2], [0, 1]]))
         """
         if count_mode == "sliding" or count_mode == "sliding-effective":
-            count_matrix = msmest.count_matrix(
-                dtrajs, lagtime, sliding=True, sparse_return=sparse
-            )
+            count_matrix = msmest.count_matrix(dtrajs, lagtime, sliding=True, sparse_return=sparse)
             if count_mode == "sliding-effective":
                 count_matrix /= lagtime
         elif count_mode == "sample":
-            count_matrix = msmest.count_matrix(
-                dtrajs, lagtime, sliding=False, sparse_return=sparse
-            )
+            count_matrix = msmest.count_matrix(dtrajs, lagtime, sliding=False, sparse_return=sparse)
         elif count_mode == "effective":
             count_matrix = msmest.effective_count_matrix(dtrajs, lagtime, n_jobs=n_jobs)
             if not sparse and issparse(count_matrix):

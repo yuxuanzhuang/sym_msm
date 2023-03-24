@@ -43,9 +43,7 @@ class TICAInitializer(MSMInitializer):
                 self.tica.fit(self.feature_trajectories)
                 pickle.dump(self.tica, open(self.filename + "tica.pickle", "wb"))
                 with tqdm_joblib(
-                    tqdm(
-                        desc="Transform features", total=len(self.feature_trajectories)
-                    )
+                    tqdm(desc="Transform features", total=len(self.feature_trajectories))
                 ) as progress_bar:
                     self.tica_output = Parallel(n_jobs=n_jobs)(
                         delayed(self.tica_transform)(self.tica, feature_traj)
@@ -57,9 +55,7 @@ class TICAInitializer(MSMInitializer):
                 self.partial_fit_tica(block_size=block_size)
                 _ = self.tica.fetch_model()
                 pickle.dump(self.tica, open(self.filename + "tica.pickle", "wb"))
-                self.tica_output = self.transform_feature_trajectories(
-                    self.md_dataframe, start=self.start
-                )
+                self.tica_output = self.transform_feature_trajectories(self.md_dataframe, start=self.start)
 
             self.tica_concatenated = np.concatenate(self.tica_output)
 
@@ -71,19 +67,15 @@ class TICAInitializer(MSMInitializer):
             self.tica = pickle.load(open(self.filename + "tica.pickle", "rb"))
             self.tica_output = pickle.load(open(self.filename + "output.pickle", "rb"))
             self.tica_concatenated = np.concatenate(self.tica_output)
-        
+
         self.transformer = self.tica
 
     def partial_fit_tica(self, block_size=1):
         """
         Fit TICA to a subset of the data."""
-        feature_df = self.md_dataframe.get_feature(
-            self.feature_input_list, in_memory=False
-        )
+        feature_df = self.md_dataframe.get_feature(self.feature_input_list, in_memory=False)
         feature_trajectories = []
-        for ind, (system, row) in tqdm(
-            enumerate(feature_df.iterrows()), total=feature_df.shape[0]
-        ):
+        for ind, (system, row) in tqdm(enumerate(feature_df.iterrows()), total=feature_df.shape[0]):
             if system not in self.system_exclusion:
                 feature_trajectory = []
                 for feat_loc, indice, feat_type in zip(
@@ -92,38 +84,28 @@ class TICAInitializer(MSMInitializer):
                     self.feature_type_list,
                 ):
                     raw_data = np.load(feat_loc, allow_pickle=True)
-                    raw_data = raw_data.reshape(raw_data.shape[0], -1)[
-                        self.start :, indice
-                    ]
+                    raw_data = raw_data.reshape(raw_data.shape[0], -1)[self.start :, indice]
                     if feat_type == "global":
                         # repeat five times
                         raw_data = (
-                            np.repeat(raw_data, 5, axis=1)
-                            .reshape(raw_data.shape[0], -1, 5)
-                            .transpose(0, 2, 1)
+                            np.repeat(raw_data, 5, axis=1).reshape(raw_data.shape[0], -1, 5).transpose(0, 2, 1)
                         )
                     else:
                         raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
 
                     feature_trajectory.append(raw_data)
 
-                feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(
-                    raw_data.shape[0], -1
-                )
+                feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(raw_data.shape[0], -1)
                 if (ind + 1) % block_size == 0:
                     feature_trajectories.append(feature_trajectory)
-                    dataset = MultimerTrajectoriesDataset.from_numpy(
-                        self.lag, self.multimer, feature_trajectories
-                    )
+                    dataset = MultimerTrajectoriesDataset.from_numpy(self.lag, self.multimer, feature_trajectories)
                     self.tica.partial_fit(dataset)
                     feature_trajectories = []
                 else:
                     feature_trajectories.append(feature_trajectory)
         # fit the remaining data
         if len(feature_trajectories) > 0:
-            dataset = MultimerTrajectoriesDataset.from_numpy(
-                self.lag, self.multimer, feature_trajectories
-            )
+            dataset = MultimerTrajectoriesDataset.from_numpy(self.lag, self.multimer, feature_trajectories)
             self.tica.partial_fit(dataset)
 
     def get_correlation(self, feature, max_tic=3, stride=1):
@@ -133,23 +115,14 @@ class TICAInitializer(MSMInitializer):
         feature_dataframe = self.md_dataframe.get_feature([feature])
 
         feature_data_concat = (
-            feature_dataframe[
-                feature_dataframe.traj_time >= self.start * self.dt * 1000
-            ]
-            .iloc[:, 4:]
-            .values
+            feature_dataframe[feature_dataframe.traj_time >= self.start * self.dt * 1000].iloc[:, 4:].values
         )
         tica_concat = np.concatenate(
-            [
-                tica_traj[:, :max_tic]
-                for tica_traj in self.tica_output[:: self.multimer]
-            ],
+            [tica_traj[:, :max_tic] for tica_traj in self.tica_output[:: self.multimer]],
             axis=0,
         )
         test_feature_TIC_correlation = np.zeros((feature_data_concat.shape[1], max_tic))
-        for i in tqdm(
-            range(feature_data_concat.shape[1]), total=feature_data_concat.shape[1]
-        ):
+        for i in tqdm(range(feature_data_concat.shape[1]), total=feature_data_concat.shape[1]):
             for j in range(max_tic):
                 test_feature_TIC_correlation[i, j] = pearsonr(
                     feature_data_concat[::stride, i], tica_concat[::stride, j]
@@ -174,24 +147,15 @@ class TICAInitializer(MSMInitializer):
         feature_dataframe = self.md_dataframe.get_feature([feature])
 
         feature_data_concat = (
-            feature_dataframe[
-                feature_dataframe.traj_time >= self.start * self.dt * 1000
-            ]
-            .iloc[:, 4:]
-            .values
+            feature_dataframe[feature_dataframe.traj_time >= self.start * self.dt * 1000].iloc[:, 4:].values
         )
         tica_concat = np.concatenate(
-            [
-                tica_traj[:, :max_tic]
-                for tica_traj in self.tica_output[:: self.multimer]
-            ],
+            [tica_traj[:, :max_tic] for tica_traj in self.tica_output[:: self.multimer]],
             axis=0,
         )
         test_feature_TIC_MI = np.zeros((feature_data_concat.shape[1], max_tic))
         for j in tqdm(range(max_tic), total=max_tic):
-            mi = mutual_info_regression(
-                feature_data_concat[::stride, :], tica_concat[::stride, j]
-            )
+            mi = mutual_info_regression(feature_data_concat[::stride, :], tica_concat[::stride, j])
             test_feature_TIC_MI[:, j] = mi
 
         test_feature_TIC_MI_df = pd.DataFrame(
@@ -242,9 +206,7 @@ class SymTICAInitializer(TICAInitializer):
                     ) as progress_bar:
                         self.tica_output = Parallel(n_jobs=n_jobs)(
                             delayed(self.tica_transform)(self.tica, feature_traj)
-                            for feature_traj in self.feature_trajectories[
-                                :: self.multimer
-                            ]
+                            for feature_traj in self.feature_trajectories[:: self.multimer]
                         )
                     print("transforming subunit feature trajectories")
                     with tqdm_joblib(
@@ -254,12 +216,8 @@ class SymTICAInitializer(TICAInitializer):
                         )
                     ) as progress_bar:
                         self.tica_subunit_output = Parallel(n_jobs=n_jobs)(
-                            delayed(self.tica_transform_subunit)(
-                                self.tica, feature_traj
-                            )
-                            for feature_traj in self.feature_trajectories[
-                                :: self.multimer
-                            ]
+                            delayed(self.tica_transform_subunit)(self.tica, feature_traj)
+                            for feature_traj in self.feature_trajectories[:: self.multimer]
                         )
                 else:
                     print("transforming feature trajectories")
@@ -269,12 +227,8 @@ class SymTICAInitializer(TICAInitializer):
                         self.feature_trajectories[:: self.multimer],
                         desc="Transforming feature trajectories",
                     ):
-                        self.tica_output.append(
-                            self.tica_transform(self.tica, feature_traj)
-                        )
-                        self.tica_subunit_output.append(
-                            self.tica_transform_subunit(self.tica, feature_traj)
-                        )
+                        self.tica_output.append(self.tica_transform(self.tica, feature_traj))
+                        self.tica_subunit_output.append(self.tica_transform_subunit(self.tica, feature_traj))
 
             else:
                 self.tica = SymTICA(
@@ -305,15 +259,15 @@ class SymTICAInitializer(TICAInitializer):
 
         else:
             print("Load old sym TICA results")
+            if self.in_memory:
+                if not self.data_collected:
+                    self.gather_feature_matrix()
             self.tica = pickle.load(open(self.filename + "sym_tica.pickle", "rb"))
             self.tica_output = pickle.load(open(self.filename + "output.pickle", "rb"))
-            self.tica_subunit_output = pickle.load(
-                open(self.filename + "output_subunit.pickle", "rb")
-            )
+            self.tica_subunit_output = pickle.load(open(self.filename + "output_subunit.pickle", "rb"))
             self.tica_concatenated = np.concatenate(self.tica_output)
             self.tica_subunit_concatenated = np.concatenate(self.tica_subunit_output)
             self.transformer = self.tica
-
 
     def get_correlation(self, feature, max_tic=3, stride=1):
         """
@@ -322,19 +276,11 @@ class SymTICAInitializer(TICAInitializer):
         feature_dataframe = self.md_dataframe.get_feature([feature])
 
         feature_data_concat = (
-            feature_dataframe[
-                feature_dataframe.traj_time >= self.start * self.dt * 1000
-            ]
-            .iloc[:, 4:]
-            .values
+            feature_dataframe[feature_dataframe.traj_time >= self.start * self.dt * 1000].iloc[:, 4:].values
         )
-        tica_concat = np.concatenate(
-            [tica_traj[:, :max_tic] for tica_traj in self.tica_output], axis=0
-        )
+        tica_concat = np.concatenate([tica_traj[:, :max_tic] for tica_traj in self.tica_output], axis=0)
         test_feature_TIC_correlation = np.zeros((feature_data_concat.shape[1], max_tic))
-        for i in tqdm(
-            range(feature_data_concat.shape[1]), total=feature_data_concat.shape[1]
-        ):
+        for i in tqdm(range(feature_data_concat.shape[1]), total=feature_data_concat.shape[1]):
             for j in range(max_tic):
                 test_feature_TIC_correlation[i, j] = pearsonr(
                     feature_data_concat[::stride, i], tica_concat[::stride, j]
@@ -359,20 +305,12 @@ class SymTICAInitializer(TICAInitializer):
         feature_dataframe = self.md_dataframe.get_feature([feature])
 
         feature_data_concat = (
-            feature_dataframe[
-                feature_dataframe.traj_time >= self.start * self.dt * 1000
-            ]
-            .iloc[:, 4:]
-            .values
+            feature_dataframe[feature_dataframe.traj_time >= self.start * self.dt * 1000].iloc[:, 4:].values
         )
-        tica_concat = np.concatenate(
-            [tica_traj[:, :max_tic] for tica_traj in self.tica_output], axis=0
-        )
+        tica_concat = np.concatenate([tica_traj[:, :max_tic] for tica_traj in self.tica_output], axis=0)
         test_feature_TIC_MI = np.zeros((feature_data_concat.shape[1], max_tic))
         for j in tqdm(range(max_tic), total=max_tic):
-            mi = mutual_info_regression(
-                feature_data_concat[::stride, :], tica_concat[::stride, j]
-            )
+            mi = mutual_info_regression(feature_data_concat[::stride, :], tica_concat[::stride, j])
             test_feature_TIC_MI[:, j] = mi
 
         test_feature_TIC_MI_df = pd.DataFrame(

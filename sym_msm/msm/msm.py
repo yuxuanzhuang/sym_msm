@@ -7,12 +7,13 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 import pandas as pd
 import matplotlib.pyplot as plt
-#import pyemma
+
+# import pyemma
 from deeptime.clustering import KMeans
 from deeptime.markov import TransitionCountEstimator
 from deeptime.markov.msm import BayesianMSM, MaximumLikelihoodMSM
 from deeptime.plots import plot_implied_timescales, plot_ck_test
-from deeptime.util.validation import implied_timescales
+from deeptime.util.validation import implied_timescales, ImpliedTimescales
 from ENPMDA import MDDataFrame
 from joblib import Parallel, delayed
 import pickle
@@ -103,9 +104,7 @@ class MSMInitializer:
         self.n_trajectories = len(np.unique(system_array))
 
         def fill_missing_values(system_array):
-            diff_arr = (np.diff(system_array, prepend=0) != 0) & (
-                np.diff(system_array, prepend=0) != 1
-            )
+            diff_arr = (np.diff(system_array, prepend=0) != 0) & (np.diff(system_array, prepend=0) != 1)
             if all(diff_arr == False):
                 return system_array
             start_index_update = np.arange(system_array.shape[0])[diff_arr][0]
@@ -138,15 +137,11 @@ class MSMInitializer:
         self.feature_input_list.append(feature_selected)
 
         feature_info = np.load(
-            self.md_dataframe.analysis_results.filename
-            + feature_selected
-            + "_feature_info.npy"
+            self.md_dataframe.analysis_results.filename + feature_selected + "_feature_info.npy"
         )
 
         self.feature_input_info_list.append(np.delete(feature_info, excluded_indices))
-        self.feature_input_indice_list.append(
-            np.delete(np.arange(len(feature_info)), excluded_indices)
-        )
+        self.feature_input_indice_list.append(np.delete(np.arange(len(feature_info)), excluded_indices))
         self.feature_type_list.append(feat_type)
         print(
             f"added feature selection {feature_selected} type: {feat_type}, # of features: {len(self.feature_input_info_list[-1])}"
@@ -157,9 +152,7 @@ class MSMInitializer:
         if self.feature_input_list == []:
             raise ValueError("No feature selected yet, please use add_feature() first")
         self.feature_trajectories = []
-        feature_df = self.md_dataframe.get_feature(
-            self.feature_input_list, in_memory=False
-        )
+        feature_df = self.md_dataframe.get_feature(self.feature_input_list, in_memory=False)
         for system, row in tqdm(feature_df.iterrows(), total=feature_df.shape[0]):
             feature_trajectory = []
             for feat_loc, indice, feat_type in zip(
@@ -172,28 +165,18 @@ class MSMInitializer:
                     end = raw_data.shape[0]
                 else:
                     end = self.end
-                raw_data = raw_data.reshape(raw_data.shape[0], -1)[
-                    self.start : end, indice
-                ]
+                raw_data = raw_data.reshape(raw_data.shape[0], -1)[self.start : end, indice]
                 if feat_type == "global":
                     # repeat five times
-                    raw_data = (
-                        np.repeat(raw_data, 5, axis=1)
-                        .reshape(raw_data.shape[0], -1, 5)
-                        .transpose(0, 2, 1)
-                    )
+                    raw_data = np.repeat(raw_data, 5, axis=1).reshape(raw_data.shape[0], -1, 5).transpose(0, 2, 1)
                 else:
                     raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
 
                 feature_trajectory.append(raw_data)
-            feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(
-                raw_data.shape[0], -1
-            )
+            feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(raw_data.shape[0], -1)
 
             if self.symmetrize:
-                self.feature_trajectories.extend(
-                    get_symmetrized_data([feature_trajectory], self.multimer)
-                )
+                self.feature_trajectories.extend(get_symmetrized_data([feature_trajectory], self.multimer))
             else:
                 self.feature_trajectories.append(feature_trajectory)
         self.data_collected = True
@@ -204,9 +187,7 @@ class MSMInitializer:
         if not self.data_collected:
             self.gather_feature_matrix()
 
-    def clustering_with_deeptime(
-        self, n_clusters, meaningful_tic=None, updating=False, max_iter=1000
-    ):
+    def clustering_with_deeptime(self, n_clusters, meaningful_tic=None, updating=False, max_iter=1000):
         # if attr tica_output is None, then tica is not performed
         if not hasattr(self, "tica_output"):
             raise ValueError("TICA output not available")
@@ -217,9 +198,7 @@ class MSMInitializer:
         self.meaningful_tic = meaningful_tic
         print("Meaningful TICs are", meaningful_tic)
 
-        self.tica_output_filter = [
-            np.asarray(output)[:, meaningful_tic] for output in self.tica_output
-        ]
+        self.tica_output_filter = [np.asarray(output)[:, meaningful_tic] for output in self.tica_output]
 
         if not (os.path.isfile(self.cluster_filename + "_deeptime.pickle")) or updating:
             print("Start new cluster analysis")
@@ -233,25 +212,19 @@ class MSMInitializer:
             )
             self.cluster = self.kmean.fit(self.tica_output_filter).fetch_model()
             self.cluster_dtrajs = [
-                self.cluster.transform(tic_output_traj)
-                for tic_output_traj in self.tica_output_filter
+                self.cluster.transform(tic_output_traj) for tic_output_traj in self.tica_output_filter
             ]
             self.cluster_centers = self.cluster.cluster_centers
             self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
 
             os.makedirs(self.filename, exist_ok=True)
-            pickle.dump(
-                self.cluster, open(self.cluster_filename + "_deeptime.pickle", "wb")
-            )
+            pickle.dump(self.cluster, open(self.cluster_filename + "_deeptime.pickle", "wb"))
         else:
             print("Loading old cluster analysis")
 
-            self.cluster = pickle.load(
-                open(self.cluster_filename + "_deeptime.pickle", "rb")
-            )
+            self.cluster = pickle.load(open(self.cluster_filename + "_deeptime.pickle", "rb"))
             self.cluster_dtrajs = [
-                self.cluster.transform(tic_output_traj)
-                for tic_output_traj in self.tica_output_filter
+                self.cluster.transform(tic_output_traj) for tic_output_traj in self.tica_output_filter
             ]
             self.cluster_centers = self.cluster.cluster_centers
             self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
@@ -266,7 +239,8 @@ class MSMInitializer:
     @staticmethod
     def bayesian_msm_from_traj(cluster_dtrajs, lagtime, n_samples, only_timescales):
         counts = TransitionCountEstimator(
-            lagtime=lagtime, count_mode="effective", 
+            lagtime=lagtime,
+            count_mode="effective",
         ).fit_fetch(cluster_dtrajs, n_jobs=1)
         if only_timescales:
             return BayesianMSM(n_samples=n_samples).fit_fetch(counts).timescales()
@@ -281,16 +255,33 @@ class MSMInitializer:
         only_timescales=False,
         updating=False,
         joblib_kwargs={},  # kwargs for joblib
-    ):
+    ) -> ImpliedTimescales:
+        """Get ITS for MSMs
+
+        Parameters
+        ----------
+        cluster : str, optional
+            Which cluster to use, by default "deeptime". Currently
+            only deeptime is supported.
+        lag_max : int, optional
+            Maximum lagtime, by default 200
+        n_samples : int, optional
+            Number of samples for Bayesian MSM, by default 1000
+        n_jobs : int, optional
+            Number of jobs for parallelization, by default 10
+        only_timescales : bool, optional
+            Only return timescales, by default False. Currently
+            not implemented.
+        updating : bool, optional
+            Whether to update existing ITS, by default False
+        joblib_kwargs : dict, optional
+            kwargs for joblib, by default {}
+        """
         if only_timescales:
             raise NotImplementedError("Only timescales not implemented yet")
         if cluster == "deeptime":
             if (
-                not (
-                    os.path.isfile(
-                        self.cluster_filename + f"_deeptime_its_{n_samples}.pickle"
-                    )
-                )
+                not (os.path.isfile(self.cluster_filename + f"_deeptime_its_{n_samples}.pickle"))
                 or updating
                 or self.rerun_msm
             ):
@@ -308,12 +299,10 @@ class MSMInitializer:
                 else:
                     models = []
                     for lagtime in tqdm(lagtimes, desc="lagtime", total=len(lagtimes)):
-                        counts = TransitionCountEstimator(
-                            lagtime=lagtime, count_mode="effective"
-                        ).fit_fetch(self.cluster_dtrajs)
-                        models.append(
-                            BayesianMSM(n_samples=n_samples).fit_fetch(counts)
+                        counts = TransitionCountEstimator(lagtime=lagtime, count_mode="effective").fit_fetch(
+                            self.cluster_dtrajs
                         )
+                        models.append(BayesianMSM(n_samples=n_samples).fit_fetch(counts))
 
                 print("Keep ITS analysis")
                 self.its_models = models
@@ -329,8 +318,7 @@ class MSMInitializer:
                 pickle.dump(
                     self.its_models,
                     open(
-                        self.cluster_filename
-                        + f"_deeptime_its_models_{n_samples}.pickle",
+                        self.cluster_filename + f"_deeptime_its_models_{n_samples}.pickle",
                         "wb",
                     ),
                 )
@@ -345,24 +333,34 @@ class MSMInitializer:
                 )
                 self.its_models = pickle.load(
                     open(
-                        self.cluster_filename
-                        + f"_deeptime_its_models_{n_samples}.pickle",
+                        self.cluster_filename + f"_deeptime_its_models_{n_samples}.pickle",
                         "rb",
                     )
                 )
+
         return self.its
 
-    def plot_its(self, n_its=10):
+    def plot_its(self, n_its=10, step="ns"):
         fig, ax = plt.subplots(figsize=(18, 10))
         plot_implied_timescales(self.its, n_its=n_its, ax=ax)
         ax.set_yscale("log")
         ax.set_title("Implied timescales")
-        ax.set_xlabel("lag time (steps)")
-        ax.set_ylabel("timescale (steps)")
+
+        if step == "ns":
+            ax.set_xlabel(f"lag time (x {self.dt} ns)")
+            ax.set_ylabel(f"timescale (x {self.dt} ns)")
+        else:
+            ax.set_xlabel(f"lag time (step)")
+            ax.set_ylabel(f"timescale (step)")
         plt.show()
 
     def get_ck_test(
-        self, n_states, lag, mlags=6, n_jobs=6, n_samples=20,
+        self,
+        n_states,
+        lag,
+        mlags=6,
+        n_jobs=6,
+        n_samples=20,
         only_timescales=False,
         updating=False,
         joblib_kwargs={},  # kwargs for joblib
@@ -375,16 +373,12 @@ class MSMInitializer:
             and (os.path.isfile(self.cluster_filename + f"_deeptime_cktest.pickle"))
         ):
             print("Loading old CK test")
-            self.ck_test = pickle.load(
-                open(self.cluster_filename + f"_deeptime_cktest.pickle", "rb")
-            )
+            self.ck_test = pickle.load(open(self.cluster_filename + f"_deeptime_cktest.pickle", "rb"))
 
         if (n_states, lag, mlags) not in self.ck_test or updating:
             print("CK models building")
             model = BayesianMSM(n_samples=n_samples).fit_fetch(
-                TransitionCountEstimator(lagtime=lag, count_mode="effective").fit_fetch(
-                    self.cluster_dtrajs
-                )
+                TransitionCountEstimator(lagtime=lag, count_mode="effective").fit_fetch(self.cluster_dtrajs)
             )
             lagtimes = np.arange(1, mlags + 1) * lag
             print("Estimating lagtimes", lagtimes)
@@ -400,12 +394,10 @@ class MSMInitializer:
             else:
                 test_models = []
                 for lagtime in tqdm(lagtimes, desc="lagtime", total=len(lagtimes)):
-                    counts = TransitionCountEstimator(
-                        lagtime=lagtime, count_mode="effective"
-                    ).fit_fetch(self.cluster_dtrajs)
-                    test_models.append(
-                        BayesianMSM(n_samples=n_samples).fit_fetch(counts)
+                    counts = TransitionCountEstimator(lagtime=lagtime, count_mode="effective").fit_fetch(
+                        self.cluster_dtrajs
                     )
+                    test_models.append(BayesianMSM(n_samples=n_samples).fit_fetch(counts))
             print("Start CK test")
             self.ck_test[n_states, lag, mlags] = {
                 "model": model,
@@ -423,25 +415,17 @@ class MSMInitializer:
         self.msm_lag = lag
         if cluster == "deeptime":
             if (
-                not (
-                    os.path.isfile(
-                        self.cluster_filename + f"_deeptime_max_msm_{lag}.pickle"
-                    )
-                )
+                not (os.path.isfile(self.cluster_filename + f"_deeptime_max_msm_{lag}.pickle"))
                 or updating
                 or self.rerun_msm
             ):
                 print("Start new MSM analysis")
-                self.msm = MaximumLikelihoodMSM(
-                    reversible=True, stationary_distribution_constraint=None
-                )
+                self.msm = MaximumLikelihoodMSM(reversible=True, stationary_distribution_constraint=None)
                 self.msm.fit(self.cluster_dtrajs, lagtime=lag)
                 self.msm_model = self.msm.fetch_model()
                 pickle.dump(
                     self.msm,
-                    open(
-                        self.cluster_filename + f"_deeptime_max_msm_{lag}.pickle", "wb"
-                    ),
+                    open(self.cluster_filename + f"_deeptime_max_msm_{lag}.pickle", "wb"),
                 )
                 pickle.dump(
                     self.msm_model,
@@ -452,38 +436,28 @@ class MSMInitializer:
                 )
             else:
                 print("Loading old MSM analysis")
-                self.msm = pickle.load(
-                    open(
-                        self.cluster_filename + f"_deeptime_max_msm_{lag}.pickle", "rb"
-                    )
-                )
+                self.msm = pickle.load(open(self.cluster_filename + f"_deeptime_max_msm_{lag}.pickle", "rb"))
                 self.msm_model = pickle.load(
                     open(
                         self.cluster_filename + f"_deeptime_max_msm_model_{lag}.pickle",
                         "rb",
                     )
                 )
-            self.trajectory_weights = self.msm_model.compute_trajectory_weights(
-                self.cluster_dtrajs
-            )
+            self.trajectory_weights = self.msm_model.compute_trajectory_weights(self.cluster_dtrajs)
         return self.msm_model
 
     def get_bayesian_msm(self, lag, n_samples=100, cluster="deeptime", updating=False):
         self.msm_lag = lag
         if cluster == "deeptime":
             if (
-                not (
-                    os.path.isfile(
-                        self.cluster_filename + f"_deeptime_bayesian_msm_{lag}.pickle"
-                    )
-                )
+                not (os.path.isfile(self.cluster_filename + f"_deeptime_bayesian_msm_{lag}.pickle"))
                 or updating
                 or self.rerun_msm
             ):
                 print("Start new MSM analysis")
-                self.counts = TransitionCountEstimator(
-                    lagtime=lag, count_mode="effective"
-                ).fit_fetch(self.cluster_dtrajs)
+                self.counts = TransitionCountEstimator(lagtime=lag, count_mode="effective").fit_fetch(
+                    self.cluster_dtrajs
+                )
                 self.msm = BayesianMSM(n_samples=n_samples).fit(self.counts)
 
                 self.msm_model = self.msm.fetch_model()
@@ -494,9 +468,7 @@ class MSMInitializer:
                 traj_weights_samples = []
                 for sample in self.msm_model.samples:
                     pi_samples.append(stationary_distribution(sample.transition_matrix))
-                    traj_weights_samples.append(
-                        sample.compute_trajectory_weights(self.cluster_dtrajs)
-                    )
+                    traj_weights_samples.append(sample.compute_trajectory_weights(self.cluster_dtrajs))
 
                 self.pi_samples = np.array(pi_samples, dtype=object)
                 self.traj_weights_samples = np.array(traj_weights_samples, dtype=object)
@@ -508,8 +480,7 @@ class MSMInitializer:
                 pickle.dump(
                     self.counts,
                     open(
-                        self.cluster_filename
-                        + f"_deeptime_bayesian_counts_{lag}.pickle",
+                        self.cluster_filename + f"_deeptime_bayesian_counts_{lag}.pickle",
                         "wb",
                     ),
                 )
@@ -523,8 +494,7 @@ class MSMInitializer:
                 pickle.dump(
                     self.msm_model,
                     open(
-                        self.cluster_filename
-                        + f"_deeptime_bayesian_msm_model_{lag}.pickle",
+                        self.cluster_filename + f"_deeptime_bayesian_msm_model_{lag}.pickle",
                         "wb",
                     ),
                 )
@@ -533,8 +503,7 @@ class MSMInitializer:
                 print("Loading old MSM analysis")
                 self.counts = pickle.load(
                     open(
-                        self.cluster_filename
-                        + f"_deeptime_bayesian_counts_{lag}.pickle",
+                        self.cluster_filename + f"_deeptime_bayesian_counts_{lag}.pickle",
                         "rb",
                     )
                 )
@@ -546,8 +515,7 @@ class MSMInitializer:
                 )
                 self.msm_model = pickle.load(
                     open(
-                        self.cluster_filename
-                        + f"_deeptime_bayesian_msm_model_{lag}.pickle",
+                        self.cluster_filename + f"_deeptime_bayesian_msm_model_{lag}.pickle",
                         "rb",
                     )
                 )
@@ -558,9 +526,7 @@ class MSMInitializer:
                 traj_weights_samples = []
                 for sample in self.msm_model.samples:
                     pi_samples.append(stationary_distribution(sample.transition_matrix))
-                    traj_weights_samples.append(
-                        sample.compute_trajectory_weights(self.cluster_dtrajs)
-                    )
+                    traj_weights_samples.append(sample.compute_trajectory_weights(self.cluster_dtrajs))
 
                 self.pi_samples = np.array(pi_samples, dtype=object)
                 self.traj_weights_samples = np.array(traj_weights_samples, dtype=object)
@@ -575,7 +541,9 @@ class MSMInitializer:
             raise ValueError("No MSM model found")
         msm_model = self.msm_model
         self.active_set = msm_model.prior.count_model.states_to_symbols(msm_model.prior.count_model.states)
-        self.inactive_set = list(set(range(msm_model.prior.count_model.n_states_full)).difference(set(self.active_set)))
+        self.inactive_set = list(
+            set(range(msm_model.prior.count_model.n_states_full)).difference(set(self.active_set))
+        )
         assignment = self.assignments_concat
         cluster_rank = self.cluster_rank_concat
         self.stat_rank_mapping = {}
@@ -587,7 +555,7 @@ class MSMInitializer:
             raise ValueError("No MSM model found")
         if self.pcca is None:
             raise ValueError("No PCCA model found")
-        
+
         cluster_rank = self.cluster_rank_concat
         assignment = self.assignments_concat
 
@@ -599,7 +567,7 @@ class MSMInitializer:
             self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))), dtype=int)
             self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)), self.disconnection_indices)
 
-            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices], method='dense') - 1
+            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices], method="dense") - 1
             self.assignment_connected = assignment[self.connected_indices]
         else:
             self.connected_indices = np.arange(len(cluster_rank))
@@ -609,14 +577,14 @@ class MSMInitializer:
         self.stat_rank_mapping_connected = {}
         for i in range(cluster_rank.max() + 1):
             self.stat_rank_mapping_connected[i] = self.assignment_connected[np.where(cluster_rank == i)[0][0]]
-        
-        #metastable_traj = [self.pcca.assignments[c_traj] for c_traj in cluster_dtrajs]
+
+        # metastable_traj = [self.pcca.assignments[c_traj] for c_traj in cluster_dtrajs]
         self.metastable_concat = self.pcca.assignments[self.cluster_rank_connected_concat]
 
     @property
     def transformer(self):
         return self._transformer
-    
+
     @transformer.setter
     def transformer(self, transformer):
         self._transformer = transformer
@@ -637,9 +605,9 @@ class MSMInitializer:
         i.e. if multimer is 5, the feature trajectories will be expanded to 5 times.
         """
         if subunit:
-            if not callable(getattr(self.transformer, 'transform_subunit', None)):
+            if not callable(getattr(self.transformer, "transform_subunit", None)):
                 raise ValueError("Transformer does not have a transform_subunit method")
-            
+
         if end == -1:
             end = md_dataframe.dataframe.shape[0]
 
@@ -658,30 +626,20 @@ class MSMInitializer:
                 raw_data = raw_data.reshape(raw_data.shape[0], -1)[start:end, indice]
                 if feat_type == "global":
                     # repeat five times
-                    raw_data = (
-                        np.repeat(raw_data, 5, axis=1)
-                        .reshape(raw_data.shape[0], -1, 5)
-                        .transpose(0, 2, 1)
-                    )
+                    raw_data = np.repeat(raw_data, 5, axis=1).reshape(raw_data.shape[0], -1, 5).transpose(0, 2, 1)
                 else:
                     raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
 
                 feature_trajectory.append(raw_data)
 
-            feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(
-                raw_data.shape[0], -1
-            )
+            feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(raw_data.shape[0], -1)
             if symmetrized:
-                feature_trajectories = get_symmetrized_data(
-                    [feature_trajectory], self.multimer
-                )
+                feature_trajectories = get_symmetrized_data([feature_trajectory], self.multimer)
             else:
                 feature_trajectories = [feature_trajectory]
             for single_traj in feature_trajectories:
                 if subunit:
-                    mapped_feature_trajectories.append(
-                        self.transformer.transform_subunit(single_traj)
-                    )
+                    mapped_feature_trajectories.append(self.transformer.transform_subunit(single_traj))
                 else:
                     mapped_feature_trajectories.append(self.transformer.transform(single_traj))
 
@@ -695,14 +653,14 @@ class MSMInitializer:
             feature_list_str = "__".join(
                 [
                     f"{feature}_{len(feat_n)}"
-                    for feature, feat_n in zip(
-                        self.feature_input_list, self.feature_input_info_list
-                    )
+                    for feature, feat_n in zip(self.feature_input_list, self.feature_input_info_list)
                 ]
             )
 
         if self.end == -1:
-            return f"{self.md_dataframe.filename}/msmfile/{self.prefix}/{self.lag}/{self.start}/{feature_list_str}/"
+            return (
+                f"{self.md_dataframe.filename}/msmfile/{self.prefix}/{self.lag}/{self.start}/{feature_list_str}/"
+            )
         else:
             return f"{self.md_dataframe.filename}/msmfile/{self.prefix}/{self.lag}/{self.start}_{self.end}/{feature_list_str}/"
 
@@ -716,6 +674,7 @@ class MSMInitializer:
             + "_".join([str(m_tic) for m_tic in self.meaningful_tic])
             + "_"
         )
+
 
 # TODO: check msm model from basemodel information
 """

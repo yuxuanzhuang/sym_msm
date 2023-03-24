@@ -9,22 +9,18 @@ import seaborn as sns
 
 from ENPMDA import MDDataFrame
 
-def export_plotly(plotly_df,
-                  title,
-                  output,
-                  state_columns,
-                  sel_tic=[0, 1],
-                  append=False):
-    print('output: ', output)
+
+def export_plotly(plotly_df, title, output, state_columns, sel_tic=[0, 1], append=False):
+    print("output: ", output)
     if len(sel_tic) != 2:
-        raise ValueError('sel_tic must be a list of two integers.')
-    print('sel_tic: ', sel_tic)
+        raise ValueError("sel_tic must be a list of two integers.")
+    print("sel_tic: ", sel_tic)
 
     struc_state_dic = {
-            'BGT': 'CLOSED',
-            'EPJ': 'DESENSITIZED',
-            '7ekt': 'I (7EKT)',
-            'EPJPNU': 'OPEN',
+        "BGT": "CLOSED",
+        "EPJ": "DESENSITIZED",
+        "7ekt": "I (7EKT)",
+        "EPJPNU": "OPEN",
     }
 
     state_indices = np.arange(50)
@@ -36,7 +32,7 @@ def export_plotly(plotly_df,
 
     tic_values = []
     for tic in sel_tic:
-        tic_values.append(plotly_df[plotly_df.traj_time%10000 == 0][f'tic_{tic}'].values)
+        tic_values.append(plotly_df[plotly_df.traj_time % 10000 == 0][f"tic_{tic}"].values)
 
     fig = go.Figure()
     fig.update_layout(margin=dict(t=150))
@@ -46,64 +42,65 @@ def export_plotly(plotly_df,
 
     color_mappings = {}
     for state in state_columns:
-        color_mappings[state] = plotly_df[plotly_df.traj_time%10000 == 0][state].values
-    color_mappings['frame'] = plotly_df[plotly_df.traj_time%10000 == 0]['frame'].values
-    color_mappings['traj_time'] = plotly_df[plotly_df.traj_time%10000 == 0]['traj_time'].values
+        color_mappings[state] = plotly_df[plotly_df.traj_time % 10000 == 0][state].values
+    color_mappings["frame"] = plotly_df[plotly_df.traj_time % 10000 == 0]["frame"].values
+    color_mappings["traj_time"] = plotly_df[plotly_df.traj_time % 10000 == 0]["traj_time"].values
 
-    plot_states = ['BGT', 'EPJ', 'EPJPNU']
+    plot_states = ["BGT", "EPJ", "EPJPNU"]
 
     for state in state_columns:
-        for system, df in plotly_df.groupby('system'):
+        for system, df in plotly_df.groupby("system"):
             pathway = df.pathway.unique()[0]
-            pathway_text = ' to '.join([struc_state_dic[path][0] for path in pathway.split('_')])
+            pathway_text = " to ".join([struc_state_dic[path][0] for path in pathway.split("_")])
             seed = df.seed.unique()[0]
-            x = df[df.traj_time%10000 == 0][f'tic_{sel_tic[0]}'].values
-            y = df[df.traj_time%10000 == 0][f'tic_{sel_tic[1]}'].values
+            x = df[df.traj_time % 10000 == 0][f"tic_{sel_tic[0]}"].values
+            y = df[df.traj_time % 10000 == 0][f"tic_{sel_tic[1]}"].values
 
             fig.add_trace(
-                go.Scattergl(x=x, y=y,
-                    name=f'SEED_{seed}',
-                    mode='lines+markers',
-                    visible=state == 'frame',
+                go.Scattergl(
+                    x=x,
+                    y=y,
+                    name=f"SEED_{seed}",
+                    mode="lines+markers",
+                    visible=state == "frame",
                     legendgroup=pathway_text,
                     legendgrouptitle_text=pathway_text,
-                    showlegend=state == 'frame',
+                    showlegend=state == "frame",
                     line=dict(
                         width=0.1,
-                        color='black',
+                        color="black",
                     ),
                     marker=dict(
-                        color=df[df.traj_time%10000 == 0][state].values,
-                        colorscale='Purp',
+                        color=df[df.traj_time % 10000 == 0][state].values,
+                        colorscale="Purp",
                         size=10,
                         opacity=1,
-                        showscale=False)
+                        showscale=False,
+                    ),
                 )
             )
 
-    for system, df in plotly_df.groupby('system'):
+    for system, df in plotly_df.groupby("system"):
         pathway = df.pathway.unique()[0]
         seed = df.seed.unique()[0]
-        if seed == 0 and pathway.split('_')[0] in plot_states:
-            x = df[df.traj_time%10000 == 0][f'tic_{sel_tic[0]}'].values
-            y = df[df.traj_time%10000 == 0][f'tic_{sel_tic[1]}'].values
+        if seed == 0 and pathway.split("_")[0] in plot_states:
+            x = df[df.traj_time % 10000 == 0][f"tic_{sel_tic[0]}"].values
+            y = df[df.traj_time % 10000 == 0][f"tic_{sel_tic[1]}"].values
 
-            fig.add_annotation(x=x[10], y=y[10],
-                text=struc_state_dic[pathway.split('_')[0]],
+            fig.add_annotation(
+                x=x[10],
+                y=y[10],
+                text=struc_state_dic[pathway.split("_")[0]],
                 showarrow=False,
-                font=dict(
-                    family="Courier New, monospace",
-                    size=16,
-                    color="#ffffff"
-                    ),
+                font=dict(family="Courier New, monospace", size=16, color="#ffffff"),
                 align="center",
                 bordercolor="#c7c7c7",
                 borderwidth=2,
                 borderpad=4,
                 bgcolor="#ff7f0e",
-                opacity=0.4)
-            plot_states.remove(pathway.split('_')[0])
-        
+                opacity=0.4,
+            )
+            plot_states.remove(pathway.split("_")[0])
 
     if False:
 
@@ -113,12 +110,11 @@ def export_plotly(plotly_df,
             print(points)
             if len(points.point_inds) == 0:
                 return
-            
-            for i,_ in enumerate(fig.data):
-                fig.data[i]['marker']['size'] = default_size + highlighted_size_delta
 
+            for i, _ in enumerate(fig.data):
+                fig.data[i]["marker"]["size"] = default_size + highlighted_size_delta
 
-        # we need to add the on_click event to each trace separately       
+        # we need to add the on_click event to each trace separately
         for i in range(len(fig.data[:])):
             fig.data[i].on_click(update_trace)
 
@@ -128,62 +124,55 @@ def export_plotly(plotly_df,
         autosize=True,
         width=1300,
         height=700,
-        margin=dict(
-            l=50,
-            r=50,
-            b=100,
-            t=100,
-            pad=4
-        ),
+        margin=dict(l=50, r=50, b=100, t=100, pad=4),
         paper_bgcolor="LightSteelBlue",
     )
     button_lists = []
-    button_lists.append(dict(label="None",
-                        method="restyle",
-                        visible=True,
-                        args=[{"visible": [False] * len(fig.data)}],
-                        ))
-#    button_lists.append(dict(label="Frame",
-#                        method="restyle",
-#                        visible=True,
-#                        args=[{"visible": [True] * len(fig.data)}],
-#                        ))
+    button_lists.append(
+        dict(
+            label="None",
+            method="restyle",
+            visible=True,
+            args=[{"visible": [False] * len(fig.data)}],
+        )
+    )
+    #    button_lists.append(dict(label="Frame",
+    #                        method="restyle",
+    #                        visible=True,
+    #                        args=[{"visible": [True] * len(fig.data)}],
+    #                        ))
     for i, state in enumerate(state_columns):
         # update color of markers
-        button_lists.append(dict(label=state,
-                            method="restyle",
-                            visible=True,
-                            args=[{
-                                   "visible": [True] * len(fig.data),
-                                   }],
-                            ))
-        
+        button_lists.append(
+            dict(
+                label=state,
+                method="restyle",
+                visible=True,
+                args=[
+                    {
+                        "visible": [True] * len(fig.data),
+                    }
+                ],
+            )
+        )
+
     fig.update_layout(
         title=f"{title} \n Color (Time)\n Size (MSM weight)",
-        font=dict(
-            family="Courier New, monospace",
-            size=10,
-            color="#000000"
-            ),
+        font=dict(family="Courier New, monospace", size=10, color="#000000"),
         xaxis_range=[-3.5, 3.3],
         yaxis_range=[-3.1, 3.9],
         legend=dict(x=1.1, y=0.95),
         legend_groupclick="toggleitem",
-    #    legend_groupclick="togglegroup",
+        #    legend_groupclick="togglegroup",
         legend_orientation="h",
-        updatemenus=[
-            dict(
-                active=0,
-            buttons=button_lists
-    )
-    ]
+        updatemenus=[dict(active=0, buttons=button_lists)],
     )
 
     if append:
-        with open(output, 'a') as f:
-            f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
+        with open(output, "a") as f:
+            f.write(fig.to_html(full_html=False, include_plotlyjs="cdn"))
     else:
-        with open(output, 'w') as f:
-            f.write(fig.to_html(full_html=True, include_plotlyjs='cdn'))
+        with open(output, "w") as f:
+            f.write(fig.to_html(full_html=True, include_plotlyjs="cdn"))
 
-    print(f'Exported {output}')
+    print(f"Exported {output}")
