@@ -5,8 +5,8 @@ __email__ = "yuxuan.zhuang@dbb.su.se"
 __version__ = "0.1.0"
 
 from .tica_initializer import (
-    VAMPNet_Multimer,
-    VAMPNet_Multimer_AUG,
+    TICAInitializer,
+    SymTICAInitializer,
 )
 
 from .sym_tica import (
