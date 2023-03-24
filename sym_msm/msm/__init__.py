@@ -8,11 +8,6 @@ from .msm import (
     MSMInitializer,
 )
 
-from .vampnet_initializer import (
-    VAMPNETInitializer,
-    VAMPNETInitializer_Multimer,
-)
-
 from .sym_transition import (
     SymTransitionCountEstimator,
 )
