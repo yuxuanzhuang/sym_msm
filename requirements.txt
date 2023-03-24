@@ -32,8 +32,8 @@ pandas
 deeptime
 pyemma
 nglview
-dask==2021.4.1
-distributed==2021.4.1
+dask
+distributed
 torch
 mdanalysis @ git+https://github.com/yuxuanzhuang/mdanalysis#egg=with_fasttrans&subdirectory=package
 ENPMDA @ git+https://github.com/yuxuanzhuang/enpmda
