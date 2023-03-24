@@ -19,7 +19,7 @@ from typing import List, Tuple, Dict, Union, Optional
 import dask.dataframe as dd
 
 from ..util.utils import *
-from ..msm.msm import MSMInitializer
+from ..msm import MSMInitializer
 from ..util.dataloader import MultimerTrajectoriesDataset, get_symmetrized_data
 from .sym_tica import SymTICA
 
@@ -71,6 +71,8 @@ class TICAInitializer(MSMInitializer):
             self.tica = pickle.load(open(self.filename + "tica.pickle", "rb"))
             self.tica_output = pickle.load(open(self.filename + "output.pickle", "rb"))
             self.tica_concatenated = np.concatenate(self.tica_output)
+        
+        self.transformer = self.tica
 
     def partial_fit_tica(self, block_size=1):
         """
@@ -123,67 +125,6 @@ class TICAInitializer(MSMInitializer):
                 self.lag, self.multimer, feature_trajectories
             )
             self.tica.partial_fit(dataset)
-
-    def transform_feature_trajectories(
-        self,
-        md_dataframe,
-        start=0,
-        end=-1,
-        system_exclusion=[],
-        symmetrized=True,
-        subunit=False,
-    ) -> List[np.ndarray]:
-        """
-        Map new feature trajectories to the TICA space.
-        Note the feature trajectories will expanded based on the multimer size.
-        i.e. if multimer is 5, the feature trajectories will be expanded to 5 times.
-        """
-        if end == -1:
-            end = md_dataframe.dataframe.shape[0]
-
-        mapped_feature_trajectories = []
-        feature_df = md_dataframe.get_feature(self.feature_input_list, in_memory=False)
-        for system, row in tqdm(feature_df.iterrows(), total=feature_df.shape[0]):
-            if system in system_exclusion:
-                continue
-            feature_trajectory = []
-            for feat_loc, indice, feat_type in zip(
-                row[self.feature_input_list].values,
-                self.feature_input_indice_list,
-                self.feature_type_list,
-            ):
-                raw_data = np.load(feat_loc, allow_pickle=True)
-                raw_data = raw_data.reshape(raw_data.shape[0], -1)[start:end, indice]
-                if feat_type == "global":
-                    # repeat five times
-                    raw_data = (
-                        np.repeat(raw_data, 5, axis=1)
-                        .reshape(raw_data.shape[0], -1, 5)
-                        .transpose(0, 2, 1)
-                    )
-                else:
-                    raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
-
-                feature_trajectory.append(raw_data)
-
-            feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(
-                raw_data.shape[0], -1
-            )
-            if symmetrized:
-                feature_trajectories = get_symmetrized_data(
-                    [feature_trajectory], self.multimer
-                )
-            else:
-                feature_trajectories = [feature_trajectory]
-            for single_traj in feature_trajectories:
-                if subunit:
-                    mapped_feature_trajectories.append(
-                        self.tica.transform_subunit(single_traj)
-                    )
-                else:
-                    mapped_feature_trajectories.append(self.tica.transform(single_traj))
-
-        return mapped_feature_trajectories
 
     def get_correlation(self, feature, max_tic=3, stride=1):
         """
@@ -288,6 +229,8 @@ class SymTICAInitializer(TICAInitializer):
                     lagtime=self.lag,
                 )
                 self.tica.fit(self.feature_trajectories)
+                self.transformer = self.tica
+
                 pickle.dump(self.tica, open(self.filename + "sym_tica.pickle", "wb"))
                 if n_jobs != 1:
                     print("transforming feature trajectories")
@@ -342,6 +285,7 @@ class SymTICAInitializer(TICAInitializer):
                 )
                 self.partial_fit_tica(block_size=block_size)
                 _ = self.tica.fetch_model()
+                self.transformer = self.tica
                 pickle.dump(self.tica, open(self.filename + "sym_tica.pickle", "wb"))
                 self.tica_output = self.transform_feature_trajectories(
                     self.md_dataframe, start=self.start, symmetrized=False
@@ -368,6 +312,8 @@ class SymTICAInitializer(TICAInitializer):
             )
             self.tica_concatenated = np.concatenate(self.tica_output)
             self.tica_subunit_concatenated = np.concatenate(self.tica_subunit_output)
+            self.transformer = self.tica
+
 
     def get_correlation(self, feature, max_tic=3, stride=1):
         """

@@ -597,7 +597,7 @@ class MSMInitializer:
             for inactive_stat in self.inactive_set:
                 disconnection_indices.append(np.where(cluster_rank == inactive_stat)[0])
             self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))), dtype=int)
-            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)), disconnection_indices)
+            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)), self.disconnection_indices)
 
             self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices], method='dense') - 1
             self.assignment_connected = assignment[self.connected_indices]
@@ -613,6 +613,79 @@ class MSMInitializer:
         #metastable_traj = [self.pcca.assignments[c_traj] for c_traj in cluster_dtrajs]
         self.metastable_concat = self.pcca.assignments[self.cluster_rank_connected_concat]
 
+    @property
+    def transformer(self):
+        return self._transformer
+    
+    @transformer.setter
+    def transformer(self, transformer):
+        self._transformer = transformer
+
+    def transform_feature_trajectories(
+        self,
+        md_dataframe,
+        start=0,
+        end=-1,
+        system_exclusion=[],
+        symmetrized=True,
+        subunit=False,
+    ) -> List[np.ndarray]:
+        """
+        Map new feature trajectories to the MSM transformer space.
+        Note the feature trajectories will expanded based on the multimer size if symmetrized
+        is set to `True`.
+        i.e. if multimer is 5, the feature trajectories will be expanded to 5 times.
+        """
+        if subunit:
+            if not callable(getattr(self.transformer, 'transform_subunit', None)):
+                raise ValueError("Transformer does not have a transform_subunit method")
+            
+        if end == -1:
+            end = md_dataframe.dataframe.shape[0]
+
+        mapped_feature_trajectories = []
+        feature_df = md_dataframe.get_feature(self.feature_input_list, in_memory=False)
+        for system, row in tqdm(feature_df.iterrows(), total=feature_df.shape[0]):
+            if system in system_exclusion:
+                continue
+            feature_trajectory = []
+            for feat_loc, indice, feat_type in zip(
+                row[self.feature_input_list].values,
+                self.feature_input_indice_list,
+                self.feature_type_list,
+            ):
+                raw_data = np.load(feat_loc, allow_pickle=True)
+                raw_data = raw_data.reshape(raw_data.shape[0], -1)[start:end, indice]
+                if feat_type == "global":
+                    # repeat five times
+                    raw_data = (
+                        np.repeat(raw_data, 5, axis=1)
+                        .reshape(raw_data.shape[0], -1, 5)
+                        .transpose(0, 2, 1)
+                    )
+                else:
+                    raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
+
+                feature_trajectory.append(raw_data)
+
+            feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(
+                raw_data.shape[0], -1
+            )
+            if symmetrized:
+                feature_trajectories = get_symmetrized_data(
+                    [feature_trajectory], self.multimer
+                )
+            else:
+                feature_trajectories = [feature_trajectory]
+            for single_traj in feature_trajectories:
+                if subunit:
+                    mapped_feature_trajectories.append(
+                        self.transformer.transform_subunit(single_traj)
+                    )
+                else:
+                    mapped_feature_trajectories.append(self.transformer.transform(single_traj))
+
+        return mapped_feature_trajectories
 
     @property
     def filename(self):

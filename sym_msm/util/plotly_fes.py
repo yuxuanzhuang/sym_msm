@@ -62,7 +62,20 @@ def export_plotly(tica_csv,
                   output,
                   sel_tic = [0, 1],
                   append=False):
-    print('tica_csv: ', tica_csv)
+    if tica_csv is None and plotly_df is None:
+        print('No tica data found. Generate tica_csv first.')
+        exit()
+    if plotly_df is None:
+        print('tica_csv: ', tica_csv)
+        # load tica data
+        try:
+            plotly_df = pd.read_csv(tica_csv)
+        except:
+            print(f'No tica data found. Generate {tica_csv} first.')
+            exit()
+    else:
+        print('Use dataframe directly')
+        
     print('output: ', output)
     if len(sel_tic) != 2:
         raise ValueError('sel_tic must be a list of two integers.')
@@ -248,21 +261,28 @@ def export_plotly(tica_csv,
 
     print(f'Exported {output}')
 
-def export_plotly_3d(tica_csv,
-                     title,
-                     output,
+def export_plotly_3d(tica_csv=None,
+                     plotly_df=None,
+                     title='FES 3D',
+                     output='fes_3d.html',
                      sel_tic = [0, 1, 2],
                      colored_by=[],
                      append=False):
-    print('tica_csv: ', tica_csv)
-    print('output: ', output)
-
-    # load tica data
-    try:
-        plotly_df = pd.read_csv(tica_csv)
-    except:
-        print(f'No tica data found. Generate {tica_csv} first.')
+    if tica_csv is None and plotly_df is None:
+        print('No tica data found. Generate tica_csv first.')
         exit()
+    if plotly_df is None:
+        print('tica_csv: ', tica_csv)
+        # load tica data
+        try:
+            plotly_df = pd.read_csv(tica_csv)
+        except:
+            print(f'No tica data found. Generate {tica_csv} first.')
+            exit()
+    else:
+        print('Use dataframe directly')
+
+    print('output: ', output)
 
     fig = go.Figure()
 
