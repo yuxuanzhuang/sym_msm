@@ -5,10 +5,13 @@ __email__ = "yuxuan.zhuang@dbb.su.se"
 __version__ = "0.1.0"
 
 from .vampnet import (
-    VAMPNETInitializer,
-    VAMPNETInitializer_Multimer,
     VAMPNet_Multimer,
     VAMPNet_Multimer_AUG,
+)
+
+from .vampnet_initializer import (
+    VAMPNETInitializer,
+    VAMPNETInitializer_Multimer,
 )
 
 from .lobe import (

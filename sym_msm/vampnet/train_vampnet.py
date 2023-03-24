@@ -31,7 +31,7 @@ print(f"Using device {device}")
 ## Train Vampnet
 
 resids_exclusion = (
-    list(range(386, 397))
+    list(range(382, 397))
     + list(range(298, 364))
     + list(range(1, 25))
     + list(range(60, 75))
@@ -42,6 +42,8 @@ def start_training(
     lobe_class,
     resids_exclusion=resids_exclusion,
     prefix="a7_apos_nosym_rev",
+    min_state=2,
+    max_state=5,
     batch_size=8000,
     updating=True,
     overwrite=True,
@@ -95,7 +97,7 @@ def start_training(
 
     pentamer_lobes = []
     multimer_class = getattr(sys.modules[__name__], lobe_class)
-    for n_states in range(3, 7):
+    for n_states in range(min_state, max_state + 1):
         pentamer_nstate_lobe = multimer_class(
             data_shape=total_nfeat, multimer=5, n_states=n_states
         )
@@ -129,6 +131,7 @@ def start_training(
             )
             and not overwrite
         ):
+            print(f"Loading existing model with epoch {n_epochs} and state {vampnet.n_states} for rep {rep}")
             vampnets[i] = pickle.load(
                 open(
                     f"{msm_obj.filename}{class_name}/epoch_{n_epochs}_state_{vampnet.n_states}_rep_{rep}.lobe",
@@ -194,10 +197,19 @@ def main():
         help="prefix for the output files",
     )
     parser.add_argument(
-        "--batch_size", type=int, default=8000, help="batch size for training"
+        "--min_state", type=int, default=2, help="minimum number of states"
+    )
+    parser.add_argument(
+        "--max_state", type=int, default=5, help="maximum number of states"
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=6000, help="batch size for training"
     )
     parser.add_argument(
         "--updating", type=bool, default=True, help="whether to update the model"
+    )
+    parser.add_argument(
+        "--overwrite", type=bool, default=True, help="whether to overwrite existing model"
     )
     parser.add_argument("--lag", type=int, default=50, help="lag time for the VAMPNet")
     parser.add_argument(
@@ -231,7 +243,8 @@ def main():
     # parse the arguments
     args = parser.parse_args()
 
-    print(args)
+    for arg in args:
+        print(arg)
     start_training(**vars(args))
 
 
