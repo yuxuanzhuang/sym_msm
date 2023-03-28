@@ -55,6 +55,7 @@ class VAMPNet_Multimer(VAMPNet):
         epsilon: float = 1e-6,
         dtype=np.float32,
         trained=False,
+        resids_exclusion=[], # just for retrieving the data
     ):
         super().__init__(
             lobe,
@@ -72,6 +73,7 @@ class VAMPNet_Multimer(VAMPNet):
         self.n_states = n_states
         self.rep = rep
         self.trained = trained
+        self.resids_exclusion = resids_exclusion
 
         # if the output is symmetric over subunits,
         # set sym to True

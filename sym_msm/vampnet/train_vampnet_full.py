@@ -1,15 +1,14 @@
 import warnings
-
 warnings.simplefilter(action="ignore", category=FutureWarning)
 import logging
-
 logging.basicConfig(filename="logs.log", level=logging.INFO)
+
 from ENPMDA import MDDataFrame
 import itertools
 from sym_msm.msm import *
 from sym_msm.vampnet import (
     VAMPNETInitializer_Multimer,
-    VAMPNet_Multimer_SYM_REV,
+    VAMPNet_Multimer_REV,
 )
 from sym_msm.vampnet.lobe import *
 import sys
@@ -34,9 +33,8 @@ print(f"Using device {device}")
 
 ## Train Vampnet
 
-#resids_exclusion = list(range(382, 397)) + list(range(292, 372)) + list(range(1, 25)) + list(range(60, 75))
-#resids_exclusion = list(range(267, 397)) + list(range(1,25)) + list(range(60, 75))
-resids_exclusion = {}
+resids_exclusion = list(range(382, 397)) + list(range(298, 372)) + list(range(1, 25)) + list(range(60, 75))
+
 
 def start_training(
     dataframe_name,
@@ -47,7 +45,7 @@ def start_training(
     prefix="a7_apos_nosym_rev",
     min_state=2,
     max_state=5,
-    batch_size=10000,
+    batch_size=8000,
     updating=True,
     overwrite=True,
     lag=50,
@@ -55,11 +53,9 @@ def start_training(
     n_epochs=300,
     n_rep=5,
     learning_rate=5e-3,
-    early_stopping_patience=30,
-    early_stopping_threshold=1e-5,
+    early_stopping_patience=20,
+    early_stopping_threshold=1e-4,
 ):
-    resids_exclusion = eval(resids_exclusion)
-    system_exclusion = eval(system_exclusion)
     md_dataframe = MDDataFrame.load_dataframe(dataframe_name)
     msm_obj = VAMPNETInitializer_Multimer(
         md_dataframe=md_dataframe,
@@ -105,11 +101,11 @@ def start_training(
         pentamer_nstate_lobe = torch.nn.DataParallel(pentamer_nstate_lobe)
         pentamer_lobes.append(pentamer_nstate_lobe)
 
-    class_name = "VAMPNet_Multimer_SYM_REV"
+    class_name = "VAMPNet_Multimer_REV"
     print("Training VAMPNet Multimer")
 
     vampnets = [
-        VAMPNet_Multimer_SYM_REV(
+        VAMPNet_Multimer_REV(
             multimer=5,
             n_states=pentamer_lobe._modules["module"].n_states,
             rep=rep,
@@ -119,7 +115,6 @@ def start_training(
             learning_rate=learning_rate,
             dtype=np.float64,  # type: ignore
             device=device,
-            resids_exclusion=resids_exclusion,
         )
         for pentamer_lobe, rep in itertools.product(pentamer_lobes, range(n_rep))
     ]
@@ -188,14 +183,14 @@ def main():
     )
     parser.add_argument(
         "--resids_exclusion",
-        type=str,
-        default=str(resids_exclusion),
+        type=list,
+        default=resids_exclusion,
         help="resids to exclude from the dataset",
     )
     parser.add_argument(
         "--system_exclusion",
-        type=str,
-        default=str([]),
+        type=list,
+        default=[],
         help="systems to exclude from the dataset",
     )
     parser.add_argument("--multimer", type=int, default=5, help="number of monomers in the multimer")
@@ -207,7 +202,7 @@ def main():
     )
     parser.add_argument("--min_state", type=int, default=2, help="minimum number of states")
     parser.add_argument("--max_state", type=int, default=5, help="maximum number of states")
-    parser.add_argument("--batch_size", type=int, default=10000, help="batch size for training")
+    parser.add_argument("--batch_size", type=int, default=6000, help="batch size for training")
     parser.add_argument("--updating", type=bool, default=True, help="whether to update the model")
     parser.add_argument("--overwrite", type=bool, default=True, help="whether to overwrite existing model")
     parser.add_argument("--lag", type=int, default=50, help="lag time for the VAMPNet")

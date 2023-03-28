@@ -1,6 +1,6 @@
 import warnings
 from ..msm import MSMInitializer
-from ..util.dataloader import MultimerTrajectoriesDataset
+from ..util.dataloader import MultimerTrajectoriesDataset, get_symmetrized_data
 
 import os
 import numpy as np
@@ -116,7 +116,7 @@ class VAMPNETInitializer(MSMInitializer):
         self.assignments = self._vampnet_dict[self.active_vampnet_name]["assignments"]
         self.assignments_concat = self._vampnet_dict[self.active_vampnet_name]["assignments_concat"]
 
-    def get_tica_model(self):
+    def get_tica_model(self, symmetrize=True):
         print(f"Start TICA with VAMPNET model {self.active_vampnet_name}, lagtime: {self.lag}")
         self.tica = TICA(lagtime=self.lag, observable_transform=self.active_vampnet.fetch_model())
         data_loader = DataLoader(self.dataset, batch_size=20000, shuffle=True)
@@ -131,9 +131,18 @@ class VAMPNETInitializer(MSMInitializer):
 
         self._vampnet_dict[self.active_vampnet_name]["tica_model"] = self.tica_model
 
-        self.tica_output = [self.tica_model.transform(traj) for traj in self.dataset.trajectories]
-        self.tica_concatenated = np.concatenate(self.tica_output)
-        print("TICA shape:", self.tica_concatenated.shape)
+        if symmetrize:
+            self.feature_trajectories = []
+            for feature_trajectory in self.dataset.trajectories:
+                self.feature_trajectories.extend(get_symmetrized_data([feature_trajectory],
+                                                                      self.multimer))
+            self.tica_output = [self.tica_model.transform(traj) for traj in self.feature_trajectories]
+            self.tica_concatenated = np.concatenate(self.tica_output)
+            print("TICA shape:", self.tica_concatenated.shape)
+        else:
+            self.tica_output = [self.tica_model.transform(traj) for traj in self.dataset.trajectories]
+            self.tica_concatenated = np.concatenate(self.tica_output)
+            print("TICA shape:", self.tica_concatenated.shape)
         self.transformer = self.tica
 
 
@@ -216,7 +225,7 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
 
     def generate_state_dataframe(self, tica_output=None):
         start_time = self.start * self.dt * 1000
-        self.state_df = self.dataframe[self.dataframe.traj_time >= start_time].reset_index(drop=True).copy()
+        self.state_df = self.md_dataframe.dataframe[self.md_dataframe.dataframe.traj_time >= start_time].reset_index(drop=True).copy()
         if tica_output is not None:
             plotly_tica_concatenated = np.concatenate(tica_output[::])
             self.state_df["tic_1"] = plotly_tica_concatenated[:, 0]
@@ -249,9 +258,9 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
             )
         self.select_vampnet(0)
 
-    def get_tica_model(self):
+    def get_sym_tica_model(self, overwrite_tica=True):
         print(f"Start SymTICA with VAMPNET model {self.active_vampnet_name}, lagtime: {self.lag}")
-        self.tica = SymTICA(
+        self.sym_tica = SymTICA(
             symmetry_fold=self.active_vampnet.multimer,
             lagtime=self.lag,
             observable_transform=self.active_vampnet.fetch_model(),
@@ -263,12 +272,15 @@ class VAMPNETInitializer_Multimer(VAMPNETInitializer):
             batch_0 = torch.concat([torch.roll(batch_0, n_feat_per_sub * i, 1) for i in range(self.multimer)])
             batch_t = torch.concat([torch.roll(batch_t, n_feat_per_sub * i, 1) for i in range(self.multimer)])
 
-            self.tica.partial_fit((batch_0.numpy(), batch_t.numpy()))
-        self.tica_model = self.tica.fetch_model()
+            self.sym_tica.partial_fit((batch_0.numpy(), batch_t.numpy()))
+        self.sym_tica_model = self.sym_tica.fetch_model()
 
-        self._vampnet_dict[self.active_vampnet_name]["tica_model"] = self.tica_model
+        self._vampnet_dict[self.active_vampnet_name]["sym_tica_model"] = self.sym_tica_model
 
-        self.tica_output = [self.tica_model.transform(traj) for traj in self.dataset.trajectories]
-        self.tica_concatenated = np.concatenate(self.tica_output)
-        print("TICA shape:", self.tica_concatenated.shape)
-        self.transformer = self.tica
+        self.sym_tica_output = [self.sym_tica_model.transform(traj) for traj in self.dataset.trajectories]
+        self.sym_tica_concatenated = np.concatenate(self.sym_tica_output)
+        print("TICA shape:", self.sym_tica_concatenated.shape)
+        self.transformer = self.sym_tica
+        if overwrite_tica:
+            self.tica_output = self.sym_tica_output
+            self.tica_concatenated = self.sym_tica_concatenated
