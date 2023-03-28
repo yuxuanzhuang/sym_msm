@@ -168,9 +168,9 @@ class MSMInitializer:
                 raw_data = raw_data.reshape(raw_data.shape[0], -1)[self.start : end, indice]
                 if feat_type == "global":
                     # repeat five times
-                    raw_data = np.repeat(raw_data, 5, axis=1).reshape(raw_data.shape[0], -1, 5).transpose(0, 2, 1)
+                    raw_data = np.repeat(raw_data, self.multimer, axis=1).reshape(raw_data.shape[0], -1, self.multimer).transpose(0, 2, 1)
                 else:
-                    raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
+                    raw_data = raw_data.reshape(raw_data.shape[0], self.multimer, -1)
 
                 feature_trajectory.append(raw_data)
             feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(raw_data.shape[0], -1)
@@ -691,9 +691,9 @@ class MSMInitializer:
                 raw_data = raw_data.reshape(raw_data.shape[0], -1)[start:end, indice]
                 if feat_type == "global":
                     # repeat five times
-                    raw_data = np.repeat(raw_data, 5, axis=1).reshape(raw_data.shape[0], -1, 5).transpose(0, 2, 1)
+                    raw_data = np.repeat(raw_data, self.multimer, axis=1).reshape(raw_data.shape[0], -1, self.multimer).transpose(0, 2, 1)
                 else:
-                    raw_data = raw_data.reshape(raw_data.shape[0], 5, -1)
+                    raw_data = raw_data.reshape(raw_data.shape[0], self.multimer, -1)
 
                 feature_trajectory.append(raw_data)
 
