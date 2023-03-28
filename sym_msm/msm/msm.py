@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # import pyemma
-from deeptime.clustering import KMeans
+from deeptime.clustering import KMeans, RegularSpace
 from deeptime.markov import TransitionCountEstimator
 from deeptime.markov.msm import BayesianMSM, MaximumLikelihoodMSM
 from deeptime.plots import plot_implied_timescales, plot_ck_test
@@ -174,7 +174,6 @@ class MSMInitializer:
 
                 feature_trajectory.append(raw_data)
             feature_trajectory = np.concatenate(feature_trajectory, axis=2).reshape(raw_data.shape[0], -1)
-
             if self.symmetrize:
                 self.feature_trajectories.extend(get_symmetrized_data([feature_trajectory], self.multimer))
             else:
@@ -187,18 +186,30 @@ class MSMInitializer:
         if not self.data_collected:
             self.gather_feature_matrix()
 
-    def clustering_with_deeptime(self, n_clusters, meaningful_tic=None, updating=False, max_iter=1000):
+    def clustering_with_deeptime(self,
+                                 n_clusters=500,
+                                 dmin=0.1,
+                                 meaningful_tic=None,
+                                 updating=False,
+                                 max_iter=1000,
+                                 max_centers=2000,
+                                 method='kmean'):
         # if attr tica_output is None, then tica is not performed
         if not hasattr(self, "tica_output"):
             raise ValueError("TICA output not available")
-        self.n_clusters = n_clusters
-
         if meaningful_tic is None:
             meaningful_tic = np.arange(self.tica_output[0].shape[1])
         self.meaningful_tic = meaningful_tic
         print("Meaningful TICs are", meaningful_tic)
-
         self.tica_output_filter = [np.asarray(output)[:, meaningful_tic] for output in self.tica_output]
+
+        if method == 'kmean':
+            self.clustering_with_kmean(n_clusters, updating, max_iter)
+        elif method == 'regularspace':
+            self.clustering_with_regularspace(dmin, updating, max_centers)
+        
+    def clustering_with_kmean(self, n_clusters, updating=False, max_iter=1000):
+        self.n_clusters = n_clusters
 
         if not (os.path.isfile(self.cluster_filename + "_deeptime.pickle")) or updating:
             print("Start new cluster analysis")
@@ -228,13 +239,47 @@ class MSMInitializer:
             ]
             self.cluster_centers = self.cluster.cluster_centers
             self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
+    
+    def clustering_with_regularspace(self, dmin, max_centers=500, updating=False, n_jobs=10):
+        self.dmin = dmin
+        self.max_centers = max_centers
+
+        if not (os.path.isfile(self.cluster_filename + "_rspace.pickle")) or updating:
+            print("Start new regular space cluster analysis")
+            self.rerun_msm = True
+            self.rspace = RegularSpace(
+                dmin=self.dmin,
+                max_centers=self.max_centers,
+                n_jobs=n_jobs,
+            )
+            self.cluster = self.rspace.fit(self.tica_output_filter).fetch_model()
+            self.cluster_dtrajs = [
+                self.cluster.transform(tic_output_traj) for tic_output_traj in self.tica_output_filter
+            ]
+            self.cluster_centers = self.cluster.cluster_centers
+            self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
+            self.n_clusters = len(self.cluster_centers)
+
+            os.makedirs(self.filename, exist_ok=True)
+            pickle.dump(self.cluster, open(self.cluster_filename + "_rspace.pickle", "wb"))
+        else:
+            print("Loading old cluster analysis")
+
+            self.cluster = pickle.load(open(self.cluster_filename + "_rspace.pickle", "rb"))
+            self.cluster_dtrajs = [
+                self.cluster.transform(tic_output_traj) for tic_output_traj in self.tica_output_filter
+            ]
+            self.cluster_centers = self.cluster.cluster_centers
+            self.n_clusters = len(self.cluster_centers)
+            self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
+
 
     def assigning_cluster(self, cluster_dtrajs, n_clusters=None):
         if n_clusters is not None:
             self.n_clusters = n_clusters
         self.cluster_dtrajs = cluster_dtrajs
         self.meaningful_tic = "all"
-        self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
+        self.dtrajs_concatenated = np.concatenate(cluster_dtrajs)
 
     @staticmethod
     def bayesian_msm_from_traj(cluster_dtrajs, lagtime, n_samples, only_timescales):
@@ -544,41 +589,61 @@ class MSMInitializer:
         self.inactive_set = list(
             set(range(msm_model.prior.count_model.n_states_full)).difference(set(self.active_set))
         )
-        assignment = self.assignments_concat
-        cluster_rank = self.cluster_rank_concat
+
+        cluster_rank = self.dtrajs_concatenated
         self.stat_rank_mapping = {}
-        for i in range(cluster_rank.max() + 1):
-            self.stat_rank_mapping[i] = assignment[np.where(cluster_rank == i)[0][0]]
 
-    def get_connected_pcca_msm(self):
-        if self.msm_model is None:
-            raise ValueError("No MSM model found")
-        if self.pcca is None:
-            raise ValueError("No PCCA model found")
-
-        cluster_rank = self.cluster_rank_concat
-        assignment = self.assignments_concat
+        # if msm is built on subsystem-wise clustering
+        if hasattr(self, "assignments_concat"):
+            assignment = self.assignments_concat
+            for i in range(cluster_rank.max() + 1):
+                self.stat_rank_mapping[i] = assignment[np.where(cluster_rank == i)[0][0]]
+        else:
+            assignment = cluster_rank
+            for i in range(cluster_rank.max() + 1):
+                self.stat_rank_mapping[i] = i
 
         if self.inactive_set != []:
             # get connected indices
             disconnection_indices = []
             for inactive_stat in self.inactive_set:
                 disconnection_indices.append(np.where(cluster_rank == inactive_stat)[0])
-            self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))), dtype=int)
-            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)), self.disconnection_indices)
+            self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))),
+                                                    dtype=int)
+            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)),
+                                                  self.disconnection_indices)
 
-            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices], method="dense") - 1
-            self.assignment_connected = assignment[self.connected_indices]
+            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices],
+                                                          method="dense") - 1
+            
+            if hasattr(self, "assignments_concat"):
+                self.assignment_connected = assignment[self.connected_indices]
+            else:
+                self.assignment_connected = self.cluster_rank_connected_concat
         else:
             self.connected_indices = np.arange(len(cluster_rank))
             self.cluster_rank_connected_concat = cluster_rank
-            self.assignment_connected = assignment
+            if hasattr(self, "assignments_concat"):
+                self.assignment_connected = assignment
+                
+            else:
+                self.assignment_connected = self.cluster_rank_connected_concat
 
         self.stat_rank_mapping_connected = {}
-        for i in range(cluster_rank.max() + 1):
-            self.stat_rank_mapping_connected[i] = self.assignment_connected[np.where(cluster_rank == i)[0][0]]
+        if hasattr(self, "assignments_concat"):
+            for i in range(cluster_rank.max() + 1):
+                self.stat_rank_mapping_connected[i] = assignment[np.where(cluster_rank == i)[0][0]]
+        else:
+            for i in range(cluster_rank.max() + 1):
+                self.stat_rank_mapping_connected[i] = i
 
+    def get_connected_pcca_msm(self):
+        if self.msm_model is None:
+            raise ValueError("No MSM model found")
+        if self.pcca is None:
+            raise ValueError("No PCCA model found")
         # metastable_traj = [self.pcca.assignments[c_traj] for c_traj in cluster_dtrajs]
+#        self.metastable_traj = [self.pcca.assignments[c_traj] for c_traj in self.dtrajs_concatenated]
         self.metastable_concat = self.pcca.assignments[self.cluster_rank_connected_concat]
 
     @property

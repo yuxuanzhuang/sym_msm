@@ -9,7 +9,10 @@ import sys
 from ENPMDA import MDDataFrame
 
 
-def generate_tica_csv(md_dataframe: MDDataFrame, msm_obj, sel_tics=[0, 1], output="tica.csv"):
+def generate_tica_csv(md_dataframe: MDDataFrame,
+                      msm_obj,
+                      sel_tics=[0, 1],
+                      output="tica.csv"):
     """Generate tica.csv for plotly_fes.py by projecting the
     md_dataframe onto the selected two tica components.
     md_dataframe: MDDataFrame
