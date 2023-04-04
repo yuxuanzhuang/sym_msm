@@ -241,9 +241,11 @@ class SymTICAInitializer(TICAInitializer):
                 _ = self.tica.fetch_model()
                 self.transformer = self.tica
                 pickle.dump(self.tica, open(self.filename + "sym_tica.pickle", "wb"))
+                print("transforming feature trajectories")
                 self.tica_output = self.transform_feature_trajectories(
                     self.md_dataframe, start=self.start, symmetrized=False
                 )
+                print("transforming subunit feature trajectories")
                 self.tica_subunit_output = self.transform_feature_trajectories(
                     self.md_dataframe, start=self.start, subunit=True, symmetrized=False
                 )
