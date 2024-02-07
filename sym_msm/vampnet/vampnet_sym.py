@@ -161,7 +161,6 @@ class VAMPNet_Multimer_SYM_REV(VAMPNet_Multimer_SYM):
         # augmenting training set by permutation
         batch_0 = torch.concat([torch.roll(batch_0, n_feat_per_sub * i, 1) for i in range(self.multimer)])
         batch_t = torch.concat([torch.roll(batch_t, n_feat_per_sub * i, 1) for i in range(self.multimer)])
-
         x_0 = self.lobe(batch_0)
         x_t = self.lobe_timelagged(batch_t)
 

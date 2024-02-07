@@ -133,14 +133,20 @@ class VAMPNETInitializer(MSMInitializer):
 
         if symmetrize:
             self.feature_trajectories = []
-            for feature_trajectory in self.dataset.trajectories:
+            for feature_trajectory in tqdm(self.dataset.trajectories,
+                                             desc="Symmetrizing feature trajectories",
+                                             total=len(self.dataset.trajectories)):
                 self.feature_trajectories.extend(get_symmetrized_data([feature_trajectory],
                                                                       self.multimer))
-            self.tica_output = [self.tica_model.transform(traj) for traj in self.feature_trajectories]
+            self.tica_output = [self.tica_model.transform(traj) for traj in tqdm(self.feature_trajectories,
+                                                                                 desc="Transforming feature trajectories",
+                                                                                 total=len(self.feature_trajectories))]
             self.tica_concatenated = np.concatenate(self.tica_output)
             print("TICA shape:", self.tica_concatenated.shape)
         else:
-            self.tica_output = [self.tica_model.transform(traj) for traj in self.dataset.trajectories]
+            self.tica_output = [self.tica_model.transform(traj) for traj in tqdm(self.dataset.trajectories,
+                                                                                 desc="Transforming feature trajectories",
+                                                                                 total=len(self.dataset.trajectories))]
             self.tica_concatenated = np.concatenate(self.tica_output)
             print("TICA shape:", self.tica_concatenated.shape)
         self.transformer = self.tica

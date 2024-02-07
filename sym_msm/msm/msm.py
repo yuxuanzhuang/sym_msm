@@ -168,7 +168,11 @@ class MSMInitializer:
                 raw_data = raw_data.reshape(raw_data.shape[0], -1)[self.start : end, indice]
                 if feat_type == "global":
                     # repeat five times
-                    raw_data = np.repeat(raw_data, self.multimer, axis=1).reshape(raw_data.shape[0], -1, self.multimer).transpose(0, 2, 1)
+                    raw_data = (
+                        np.repeat(raw_data, self.multimer, axis=1)
+                        .reshape(raw_data.shape[0], -1, self.multimer)
+                        .transpose(0, 2, 1)
+                    )
                 else:
                     raw_data = raw_data.reshape(raw_data.shape[0], self.multimer, -1)
 
@@ -186,14 +190,16 @@ class MSMInitializer:
         if not self.data_collected:
             self.gather_feature_matrix()
 
-    def clustering_with_deeptime(self,
-                                 n_clusters=500,
-                                 dmin=0.1,
-                                 meaningful_tic=None,
-                                 updating=False,
-                                 max_iter=1000,
-                                 max_centers=2000,
-                                 method='kmean'):
+    def clustering_with_deeptime(
+        self,
+        n_clusters=500,
+        dmin=0.1,
+        meaningful_tic=None,
+        updating=False,
+        max_iter=1000,
+        max_centers=2000,
+        method="kmean",
+    ):
         # if attr tica_output is None, then tica is not performed
         if not hasattr(self, "tica_output"):
             raise ValueError("TICA output not available")
@@ -203,11 +209,11 @@ class MSMInitializer:
         print("Meaningful TICs are", meaningful_tic)
         self.tica_output_filter = [np.asarray(output)[:, meaningful_tic] for output in self.tica_output]
 
-        if method == 'kmean':
+        if method == "kmean":
             self.clustering_with_kmean(n_clusters, updating, max_iter)
-        elif method == 'regularspace':
+        elif method == "regularspace":
             self.clustering_with_regularspace(dmin, updating, max_centers)
-        
+
     def clustering_with_kmean(self, n_clusters, updating=False, max_iter=1000):
         self.n_clusters = n_clusters
 
@@ -239,7 +245,7 @@ class MSMInitializer:
             ]
             self.cluster_centers = self.cluster.cluster_centers
             self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
-    
+
     def clustering_with_regularspace(self, dmin, max_centers=500, updating=False, n_jobs=10):
         self.dmin = dmin
         self.max_centers = max_centers
@@ -272,7 +278,6 @@ class MSMInitializer:
             self.cluster_centers = self.cluster.cluster_centers
             self.n_clusters = len(self.cluster_centers)
             self.dtrajs_concatenated = np.concatenate(self.cluster_dtrajs)
-
 
     def assigning_cluster(self, cluster_dtrajs, n_clusters=None):
         if n_clusters is not None:
@@ -581,7 +586,7 @@ class MSMInitializer:
                 self.trajectory_weights = np.mean(self.traj_weights_samples, axis=0)
         return self.msm_model
 
-    def get_connected_msm(self):
+    def get_connected_msm(self, force_on_dtrajs=False):
         if self.msm_model is None:
             raise ValueError("No MSM model found")
         msm_model = self.msm_model
@@ -594,7 +599,7 @@ class MSMInitializer:
         self.stat_rank_mapping = {}
 
         # if msm is built on subsystem-wise clustering
-        if hasattr(self, "assignments_concat"):
+        if hasattr(self, "assignments_concat") and not force_on_dtrajs:
             assignment = self.assignments_concat
             for i in range(cluster_rank.max() + 1):
                 self.stat_rank_mapping[i] = assignment[np.where(cluster_rank == i)[0][0]]
@@ -608,14 +613,11 @@ class MSMInitializer:
             disconnection_indices = []
             for inactive_stat in self.inactive_set:
                 disconnection_indices.append(np.where(cluster_rank == inactive_stat)[0])
-            self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))),
-                                                    dtype=int)
-            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)),
-                                                  self.disconnection_indices)
+            self.disconnection_indices = np.asarray(list(set(np.concatenate(disconnection_indices))), dtype=int)
+            self.connected_indices = np.setdiff1d(np.arange(len(cluster_rank)), self.disconnection_indices)
 
-            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices],
-                                                          method="dense") - 1
-            
+            self.cluster_rank_connected_concat = rankdata(cluster_rank[self.connected_indices], method="dense") - 1
+
             if hasattr(self, "assignments_concat"):
                 self.assignment_connected = assignment[self.connected_indices]
             else:
@@ -625,7 +627,7 @@ class MSMInitializer:
             self.cluster_rank_connected_concat = cluster_rank
             if hasattr(self, "assignments_concat"):
                 self.assignment_connected = assignment
-                
+
             else:
                 self.assignment_connected = self.cluster_rank_connected_concat
 
@@ -643,7 +645,7 @@ class MSMInitializer:
         if self.pcca is None:
             raise ValueError("No PCCA model found")
         # metastable_traj = [self.pcca.assignments[c_traj] for c_traj in cluster_dtrajs]
-#        self.metastable_traj = [self.pcca.assignments[c_traj] for c_traj in self.dtrajs_concatenated]
+        #        self.metastable_traj = [self.pcca.assignments[c_traj] for c_traj in self.dtrajs_concatenated]
         self.metastable_concat = self.pcca.assignments[self.cluster_rank_connected_concat]
 
     @property
@@ -687,11 +689,17 @@ class MSMInitializer:
                 self.feature_input_indice_list,
                 self.feature_type_list,
             ):
-                raw_data = np.load(feat_loc, allow_pickle=True)
+                raw_data = np.load(
+                    feat_loc.replace(md_dataframe.init_dir, md_dataframe.working_dir), allow_pickle=True
+                )
                 raw_data = raw_data.reshape(raw_data.shape[0], -1)[start:end, indice]
                 if feat_type == "global":
                     # repeat five times
-                    raw_data = np.repeat(raw_data, self.multimer, axis=1).reshape(raw_data.shape[0], -1, self.multimer).transpose(0, 2, 1)
+                    raw_data = (
+                        np.repeat(raw_data, self.multimer, axis=1)
+                        .reshape(raw_data.shape[0], -1, self.multimer)
+                        .transpose(0, 2, 1)
+                    )
                 else:
                     raw_data = raw_data.reshape(raw_data.shape[0], self.multimer, -1)
 

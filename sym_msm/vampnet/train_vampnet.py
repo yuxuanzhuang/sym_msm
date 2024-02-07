@@ -1,9 +1,8 @@
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-import logging
+warnings.simplefilter(action="ignore", category=UserWarning)
 
-logging.basicConfig(filename="logs.log", level=logging.INFO)
 from ENPMDA import MDDataFrame
 import itertools
 from sym_msm.msm import *
@@ -17,14 +16,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 from copy import deepcopy
-from tqdm.notebook import tqdm  # progress bar
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 import argparse
 import os
 import pickle
 
 if torch.cuda.is_available():
-    device = torch.device("cuda")
+    device = torch.device("cuda:0")
     torch.backends.cudnn.benchmark = True  # type: ignore
 else:
     device = torch.device("cpu")
@@ -94,15 +93,14 @@ def start_training(
     msm_obj.start_analysis()
     dataset = msm_obj.dataset
     n_val = int(len(dataset) * 0.1)
-    train_data, val_data = torch.utils.data.random_split(dataset, [len(dataset) - n_val, n_val])  # type: ignore
-    loader_train = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    loader_val = DataLoader(val_data, batch_size=len(val_data), shuffle=False)
+
 
     pentamer_lobes = []
     multimer_class = getattr(sys.modules[__name__], lobe_class)
+    print(multimer_class)
     for n_states in range(min_state, max_state + 1):
         pentamer_nstate_lobe = multimer_class(data_shape=total_nfeat, multimer=5, n_states=n_states)
-        pentamer_nstate_lobe = torch.nn.DataParallel(pentamer_nstate_lobe)
+#        pentamer_nstate_lobe = torch.nn.DataParallel(pentamer_nstate_lobe)
         pentamer_lobes.append(pentamer_nstate_lobe)
 
     class_name = "VAMPNet_Multimer_SYM_REV"
@@ -111,7 +109,8 @@ def start_training(
     vampnets = [
         VAMPNet_Multimer_SYM_REV(
             multimer=5,
-            n_states=pentamer_lobe._modules["module"].n_states,
+            #n_states=pentamer_lobe._modules["module"].n_states,
+            n_states=pentamer_lobe.n_states,
             rep=rep,
             sym=True,
             lobe=deepcopy(pentamer_lobe).to(device=device),
@@ -142,6 +141,10 @@ def start_training(
             )
             continue
 
+        print(f"Training model with epoch {n_epochs} and state {vampnet.n_states} for rep {rep}")
+        train_data, val_data = torch.utils.data.random_split(dataset, [len(dataset) - n_val, n_val])  # type: ignore
+        loader_train = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+        loader_val = DataLoader(val_data, batch_size=len(val_data), shuffle=False)
         vampnet.fit(
             loader_train,
             n_epochs=n_epochs,
@@ -153,9 +156,11 @@ def start_training(
         os.makedirs(msm_obj.filename + class_name, exist_ok=True)
 
         vampnet.device = torch.device("cpu")
-        vampnet._lobe = vampnet._lobe.module.to("cpu")
+        #vampnet._lobe = vampnet._lobe.module.to("cpu")
+        vampnet._lobe = vampnet._lobe.to("cpu")
         vampnet._lobe.eval()
-        vampnet._lobe_timelagged = vampnet._lobe_timelagged.module.to("cpu")
+        #vampnet._lobe_timelagged = vampnet._lobe_timelagged.module.to("cpu")
+        vampnet._lobe_timelagged = vampnet._lobe_timelagged.to("cpu")
         vampnet._lobe_timelagged.eval()
         vampnet.save(folder=msm_obj.filename, n_epoch=n_epochs, rep=rep)
 

@@ -12,6 +12,7 @@ from ENPMDA import MDDataFrame
 def generate_tica_csv(md_dataframe: MDDataFrame,
                       msm_obj,
                       sel_tics=[0, 1],
+                      use_msm_weight=True,
                       output="tica.csv"):
     """Generate tica.csv for plotly_fes.py by projecting the
     md_dataframe onto the selected two tica components.
@@ -20,19 +21,26 @@ def generate_tica_csv(md_dataframe: MDDataFrame,
     sel_tics: list of int
     output: str
     """
-    plotly_tica_output = msm_obj.transform_feature_trajectories(md_dataframe)
+    plotly_tica_output = msm_obj.transform_feature_trajectories(
+        md_dataframe,
+        symmetrized=False
+        )
     plotly_df = md_dataframe.dataframe.copy()
 
-    plotly_tica_concatenated = np.concatenate(plotly_tica_output[::5])
+    plotly_tica_concatenated = np.concatenate(plotly_tica_output)
     for tic in sel_tics:
         plotly_df[f"tic_{tic}"] = plotly_tica_concatenated[:, tic]
 
     plotly_df["msm_weight"] = 0
     # if trajectory_weights exist, use them to weight the tica data.
-    if hasattr(msm_obj, "trajectory_weights"):
-        plotly_df.iloc[
-            plotly_df[plotly_df.frame >= msm_obj.start * msm_obj.md_dataframe.stride].index, -1
-        ] = np.concatenate(msm_obj.trajectory_weights[::5])
+    if use_msm_weight:
+        if hasattr(msm_obj, "trajectory_weights"):
+            plotly_df.iloc[
+                plotly_df[plotly_df.frame >= msm_obj.start * msm_obj.md_dataframe.stride].index, -1
+            ] = np.concatenate(msm_obj.trajectory_weights)
+        else:
+            print("No msm_obj.trajectory_weights found.")
+            plotly_df["msm_weight"] = 1
     plotly_df.to_csv(output)
 
 
@@ -60,19 +68,14 @@ def _to_free_energy(z, minener_zero=False):
 
 
 def export_plotly(tica_csv, title, output, sel_tic=[0, 1], append=False):
-    if tica_csv is None and plotly_df is None:
-        print("No tica data found. Generate tica_csv first.")
+    print("tica_csv: ", tica_csv)
+    # load tica data
+    try:
+        plotly_df = pd.read_csv(tica_csv)
+    except:
+        print(f"No tica data found. Generate {tica_csv} first.")
         exit()
-    if plotly_df is None:
-        print("tica_csv: ", tica_csv)
-        # load tica data
-        try:
-            plotly_df = pd.read_csv(tica_csv)
-        except:
-            print(f"No tica data found. Generate {tica_csv} first.")
-            exit()
-    else:
-        print("Use dataframe directly")
+
 
     print("output: ", output)
     if len(sel_tic) != 2:
