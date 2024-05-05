@@ -1,15 +1,9 @@
 from ENPMDA.analysis import *
 from ENPMDA.analysis.base import DaskChunkMdanalysis
 
-from MDAnalysis.analysis.rms import RMSD
-from MDAnalysis.analysis.distances import distance_array
-from MDAnalysis.lib.distances import calc_bonds
-from MDAnalysis.analysis.distances import self_distance_array
 from MDAnalysis.analysis.distances import dist
-from MDAnalysis.core.groups import AtomGroup, ResidueGroup
 
 import MDAnalysis as mda
-import itertools
 import pandas as pd
 
 # find the next subunit from the current subunit
